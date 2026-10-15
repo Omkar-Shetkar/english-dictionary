@@ -5,7 +5,16 @@
 **Status**: Draft  
 **Input**: User description: "We want to build an english dictionary firefox addon. It should be simple and intuitive in UI. When user double-clicks a word, a pop up appears near the word with the pronounciation,meaning, and usage of the word. User can have option to double-click in combination with a key."
 
+## Clarifications
+
+### Session 2026-10-16
+
+- Q: Which dictionary data service should the Firefox addon use for word definitions, phonetics, and audio pronunciation? → A: Free Dictionary API (`api.dictionaryapi.dev`) — Free and open, requiring no user account or API key, providing definitions, phonetic transcription, audio pronunciation files, and usage examples.
+- Q: What should be the default trigger behavior upon initial installation of the addon? → A: Direct Double-click by default (`"none"`) — The popup opens immediately on double-clicking a word without requiring a key, while users can configure an optional modifier key (Alt, Ctrl, or Shift) in the extension settings.
+- Q: Should the addon store a history of looked-up words for user review, or keep lookups strictly ephemeral? → A: Strictly ephemeral in v1 — Lookups are displayed on-demand and dismissed without storing any search history or user activity locally or remotely.
+
 ## User Scenarios & Testing *(mandatory)*
+
 
 ### User Story 1 - Quick Word Lookup via Double-Click (Priority: P1)
 
@@ -87,8 +96,8 @@ As a user looking up rare words, misspelled terms, or reading while offline, I w
 - **FR-005**: System MUST provide an interactive audio control to play spoken pronunciation if an audio recording is available for the word.
 - **FR-006**: System MUST display word part of speech (noun, verb, adjective, adverb, etc.) and primary definitions in an easy-to-read hierarchy.
 - **FR-007**: System MUST display at least one usage example sentence for definitions where usage data is available.
-- **FR-008**: System MUST provide user-configurable trigger preferences supporting:
-  - Direct double-click (no modifier key required)
+- **FR-008**: System MUST default to direct double-click (no modifier key required) upon initial installation, while providing user-configurable settings to select an optional modifier key requirement:
+  - Direct double-click (default: no modifier key required)
   - Alt + Double-click
   - Ctrl + Double-click
   - Shift + Double-click
@@ -97,6 +106,8 @@ As a user looking up rare words, misspelled terms, or reading while offline, I w
 - **FR-011**: System MUST display an intuitive loading state within the popup while retrieving word details.
 - **FR-012**: System MUST display concise, helpful feedback when a word is not found or when a network error occurs.
 - **FR-013**: System MUST ensure popup elements do not clash with or inherit destructive CSS styles from the host web page.
+- **FR-014**: System MUST query the Free Dictionary API (`api.dictionaryapi.dev`) to retrieve English definitions, phonetics, audio pronunciation files, and usage examples without requiring user API authentication.
+- **FR-015**: System MUST treat lookups as strictly ephemeral; the addon MUST NOT record, persist, or transmit user lookup history or search logs, keeping operation privacy-focused and lightweight.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -107,7 +118,7 @@ As a user looking up rare words, misspelled terms, or reading while offline, I w
   - `audioUrl`: Optional URL pointing to the audio pronunciation file.
   - `meanings`: A list of meanings grouped by part of speech, each containing definitions, usage examples, and optional synonyms/antonyms.
 - **TriggerConfiguration**: User preferences governing lookup behavior:
-  - `modifierKey`: The required modifier key (`"none"`, `"alt"`, `"ctrl"`, `"shift"`).
+  - `modifierKey`: The required modifier key (`"none"`, `"alt"`, `"ctrl"`, `"shift"`), defaulting to `"none"`.
   - `enabled`: Boolean toggle to enable or disable the lookup feature globally.
 
 ## Success Criteria *(mandatory)*
@@ -123,8 +134,9 @@ As a user looking up rare words, misspelled terms, or reading while offline, I w
 
 ## Assumptions
 
-- **Dictionary Data Source**: An established English dictionary public service will be utilized for word lookups, pronunciations, and audio.
+- **Dictionary Data Source**: The addon uses the public Free Dictionary API (`api.dictionaryapi.dev`) as its primary data provider for definitions, phonetics, audio, and usage examples without requiring API keys or user accounts.
 - **Host Permissions & Security**: The addon operates within standard Firefox WebExtensions permission models, requesting host permissions required to inspect selected text and display popups.
 - **Language Scope**: Initial version is scoped specifically to the English language dictionary.
 - **Browser Compatibility**: The addon targets modern Firefox desktop versions supporting standard WebExtension APIs.
 - **Offline Behavior**: When disconnected from the internet, the addon displays a graceful offline notification; full offline dictionary database storage is considered out of scope for the initial lightweight release.
+- **Privacy & Data Persistence**: Lookups are strictly ephemeral in v1; no history, search logs, or telemetry are stored on the user's machine or transmitted to external tracking servers.
