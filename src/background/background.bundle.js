@@ -21,15 +21,18 @@
     let audioUrl = null;
     for (const entry of data) {
       if (Array.isArray(entry.phonetics)) {
-        const audioItem = entry.phonetics.find((p) => {
-          if (!p || typeof p.audio !== "string") return false;
-          const cleaned = p.audio.trim();
-          return cleaned.length > 0 && (cleaned.startsWith("http://") || cleaned.startsWith("https://"));
-        });
-        if (audioItem) {
-          audioUrl = audioItem.audio.trim();
-          break;
+        for (const p of entry.phonetics) {
+          if (!p || typeof p.audio !== "string") continue;
+          let url = p.audio.trim();
+          if (url.startsWith("//")) {
+            url = "https:" + url;
+          }
+          if (url.startsWith("http://") || url.startsWith("https://")) {
+            audioUrl = url;
+            break;
+          }
         }
+        if (audioUrl) break;
       }
     }
     const meanings = [];

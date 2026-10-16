@@ -90,7 +90,7 @@ export class PopupView {
     this.host.style.left = `${coords.left}px`;
   }
 
-  _createHeader(word, phoneticText = '', audioUrl = null) {
+  _createHeader(word, phoneticText = '', audioUrl = null, showAudio = false) {
     const header = document.createElement('div');
     header.className = 'dict-header';
 
@@ -112,7 +112,7 @@ export class PopupView {
     const actions = document.createElement('div');
     actions.className = 'dict-header-actions';
 
-    if (audioUrl) {
+    if (showAudio) {
       const audioBtn = document.createElement('button');
       audioBtn.className = 'dict-btn dict-audio-btn';
       audioBtn.title = 'Listen to pronunciation';
@@ -120,7 +120,7 @@ export class PopupView {
       audioBtn.appendChild(createSvg(SVG_SPEAKER));
       audioBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.playAudio(audioUrl, audioBtn);
+        this.playAudio(word, audioUrl, audioBtn);
       });
       actions.appendChild(audioBtn);
     }
@@ -148,7 +148,7 @@ export class PopupView {
     const card = document.createElement('div');
     card.className = `dict-card ${this._getThemeClass(theme)}`;
 
-    card.appendChild(this._createHeader(word));
+    card.appendChild(this._createHeader(word, '', null, false));
 
     const loadingView = document.createElement('div');
     loadingView.className = 'dict-loading-view';
@@ -172,7 +172,7 @@ export class PopupView {
     const card = document.createElement('div');
     card.className = `dict-card ${this._getThemeClass(theme)}`;
 
-    card.appendChild(this._createHeader(entry.word, entry.phonetic, entry.audioUrl));
+    card.appendChild(this._createHeader(entry.word, entry.phonetic, entry.audioUrl, true));
 
     const body = document.createElement('div');
     body.className = 'dict-body';
@@ -232,7 +232,7 @@ export class PopupView {
     const card = document.createElement('div');
     card.className = `dict-card ${this._getThemeClass(theme)}`;
 
-    card.appendChild(this._createHeader(word || 'Lookup'));
+    card.appendChild(this._createHeader(word || 'Lookup', '', null, false));
 
     const errorView = document.createElement('div');
     errorView.className = 'dict-error-view';
@@ -269,36 +269,79 @@ export class PopupView {
     this.shadowRoot.appendChild(cardElement);
   }
 
-  playAudio(url, buttonEl) {
+  playAudio(word, url, buttonEl) {
     if (this.activeAudio) {
       this.activeAudio.pause();
       this.activeAudio = null;
     }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
 
     if (buttonEl) buttonEl.classList.add('playing');
 
-    try {
-      const audio = new Audio(url);
-      this.activeAudio = audio;
-
-      audio.onended = () => {
-        if (buttonEl) buttonEl.classList.remove('playing');
-        this.activeAudio = null;
-      };
-
-      audio.onerror = () => {
-        if (buttonEl) buttonEl.classList.remove('playing');
-        this.activeAudio = null;
-      };
-
-      audio.play().catch((err) => {
-        console.warn('[Dictionary Addon] Audio playback failed:', err);
-        if (buttonEl) buttonEl.classList.remove('playing');
-        this.activeAudio = null;
-      });
-    } catch (err) {
-      console.warn('[Dictionary Addon] Audio initialization failed:', err);
+    const stopButtonState = () => {
       if (buttonEl) buttonEl.classList.remove('playing');
+    };
+
+    const speakFallback = () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window && word) {
+        try {
+          const utterance = new SpeechSynthesisUtterance(word);
+          utterance.lang = 'en-US';
+          utterance.rate = 0.9;
+          utterance.onend = stopButtonState;
+          utterance.onerror = stopButtonState;
+          window.speechSynthesis.speak(utterance);
+        } catch (synthErr) {
+          console.warn('[Dictionary Addon] Speech synthesis failed:', synthErr);
+          stopButtonState();
+        }
+      } else {
+        stopButtonState();
+      }
+    };
+
+    if (url && typeof url === 'string') {
+      let audioUrl = url.trim();
+      if (audioUrl.startsWith('//')) {
+        audioUrl = 'https:' + audioUrl;
+      }
+
+      try {
+        const audio = new Audio(audioUrl);
+        this.activeAudio = audio;
+
+        let fallbackTriggered = false;
+        const triggerFallback = () => {
+          if (fallbackTriggered) return;
+          fallbackTriggered = true;
+          this.activeAudio = null;
+          speakFallback();
+        };
+
+        audio.onended = () => {
+          stopButtonState();
+          this.activeAudio = null;
+        };
+
+        audio.onerror = () => {
+          triggerFallback();
+        };
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn('[Dictionary Addon] Audio playback failed, falling back to speech synthesis:', err);
+            triggerFallback();
+          });
+        }
+      } catch (err) {
+        console.warn('[Dictionary Addon] Audio initialization failed, falling back to speech synthesis:', err);
+        speakFallback();
+      }
+    } else {
+      speakFallback();
     }
   }
 
@@ -306,6 +349,9 @@ export class PopupView {
     if (this.activeAudio) {
       this.activeAudio.pause();
       this.activeAudio = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
     }
 
     if (this.host && document.contains(this.host)) {

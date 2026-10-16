@@ -63,6 +63,26 @@ describe('dictionary-service', () => {
     expect(noun.definitions[0].definition).toBe('An ephemeral plant or insect.');
   });
 
+  it('normalizes protocol-relative audio URLs with https:', () => {
+    const raw = [
+      {
+        word: 'test',
+        phonetics: [
+          { audio: '//ssl.gstatic.com/dictionary/static/sounds/20200429/test--_gb_1.mp3' }
+        ],
+        meanings: [
+          {
+            partOfSpeech: 'noun',
+            definitions: [{ definition: 'A procedure intended to establish quality.' }]
+          }
+        ]
+      }
+    ];
+
+    const entry = normalizeDictionaryResponse(raw, 'test');
+    expect(entry.audioUrl).toBe('https://ssl.gstatic.com/dictionary/static/sounds/20200429/test--_gb_1.mp3');
+  });
+
   it('normalizes Wiktionary REST API definitions and cleans HTML', () => {
     const mockWiktionary = {
       en: [
