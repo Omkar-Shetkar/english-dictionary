@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English Dictionary Preferences</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <div class="logo-wrapper">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>English Dictionary</h1>
+          <p class="subtitle">Customize lookup behavior and triggers</p>
+        </div>
+      </div>
+      <div id="saveStatus" class="save-badge">Saved</div>
+    </header>
+
+    <main class="options-main">
+      <!-- Master Toggle -->
+      <section class="setting-card">
+        <div class="setting-row">
+          <div class="setting-info">
+            <label class="setting-label" for="toggleEnabled">Enable Double-Click Lookup</label>
+            <p class="setting-desc">Automatically look up words on webpages when triggered.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggleEnabled" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Trigger Key Options -->
+      <section class="setting-card">
+        <div class="setting-info">
+          <h2 class="setting-label">Trigger Key Combination</h2>
+          <p class="setting-desc">Choose which key (if any) must be held down while double-clicking a word.</p>
+        </div>
+
+        <div class="trigger-grid" role="radiogroup" aria-label="Trigger Modifier Key">
+          <label class="trigger-option">
+            <input type="radio" name="modifierKey" value="none" checked>
+            <div class="trigger-card">
+              <div class="trigger-icon">⚡</div>
+              <div class="trigger-details">
+                <span class="trigger-title">None (Direct Double-Click)</span>
+                <span class="trigger-subtitle">Popup appears on any double-clicked word</span>
+              </div>
+              <span class="badge-recommended">Default</span>
+            </div>
+          </label>
+
+          <label class="trigger-option">
+            <input type="radio" name="modifierKey" value="alt">
+            <div class="trigger-card">
+              <div class="trigger-icon"><kbd>Alt</kbd></div>
+              <div class="trigger-details">
+                <span class="trigger-title">Alt + Double-Click</span>
+                <span class="trigger-subtitle">Hold <kbd>Alt</kbd> (or <kbd>Option</kbd>) and double-click</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="trigger-option">
+            <input type="radio" name="modifierKey" value="ctrl">
+            <div class="trigger-card">
+              <div class="trigger-icon"><kbd>Ctrl</kbd></div>
+              <div class="trigger-details">
+                <span class="trigger-title">Ctrl / Cmd + Double-Click</span>
+                <span class="trigger-subtitle">Hold <kbd>Ctrl</kbd> or <kbd>Cmd</kbd> and double-click</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="trigger-option">
+            <input type="radio" name="modifierKey" value="shift">
+            <div class="trigger-card">
+              <div class="trigger-icon"><kbd>Shift</kbd></div>
+              <div class="trigger-details">
+                <span class="trigger-title">Shift + Double-Click</span>
+                <span class="trigger-subtitle">Hold <kbd>Shift</kbd> and double-click</span>
+              </div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Appearance -->
+      <section class="setting-card">
+        <div class="setting-row">
+          <div class="setting-info">
+            <label class="setting-label" for="themeSelect">Card Appearance Theme</label>
+            <p class="setting-desc">Select visual color theme for the popup card.</p>
+          </div>
+          <select id="themeSelect" class="custom-select">
+            <option value="auto">System Default (Auto)</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Interactive Test Area -->
+      <section class="setting-card test-area">
+        <div class="setting-info">
+          <h2 class="setting-label">Test Your Settings</h2>
+          <p class="setting-desc">Double-click any highlighted word below to verify your trigger:</p>
+        </div>
+        <div class="test-sandbox">
+          <p>
+            Language learners admire <mark class="demo-word">serendipity</mark> and appreciate <mark class="demo-word">eloquence</mark> while discovering <mark class="demo-word">ephemeral</mark> treasures in literature.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="options-footer">
+      <span>English Dictionary Firefox Addon v1.0.0</span>
+      <span class="footer-dot">•</span>
+      <span>Powered by Free Dictionary API</span>
+    </footer>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>
