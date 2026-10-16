@@ -121,32 +121,102 @@
 
   // src/content/popup-view.js
   var HOST_ELEMENT_ID = "eng-dict-firefox-host-root";
-  function createSvg(markup) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(markup.trim(), "image/svg+xml");
-    const svg = doc.documentElement;
-    return document.importNode(svg, true);
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function createSvgElement(tag, attrs = {}) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [key, val] of Object.entries(attrs)) {
+      el.setAttribute(key, val);
+    }
+    return el;
   }
-  var SVG_SPEAKER = `
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-</svg>
-`;
-  var SVG_CLOSE = `
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <line x1="18" y1="6" x2="6" y2="18"></line>
-  <line x1="6" y1="6" x2="18" y2="18"></line>
-</svg>
-`;
-  var SVG_ALERT = `
-<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"></circle>
-  <line x1="12" y1="8" x2="12" y2="12"></line>
-  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-</svg>
-`;
+  function createSpeakerSvg() {
+    const svg = createSvgElement("svg", {
+      width: "15",
+      height: "15",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "2.2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    });
+    const polygon = createSvgElement("polygon", {
+      points: "11 5 6 9 2 9 2 15 6 15 11 19 11 5",
+      fill: "currentColor"
+    });
+    const path1 = createSvgElement("path", {
+      d: "M15.54 8.46a5 5 0 0 1 0 7.07",
+      fill: "none"
+    });
+    const path2 = createSvgElement("path", {
+      d: "M19.07 4.93a10 10 0 0 1 0 14.14",
+      fill: "none"
+    });
+    svg.appendChild(polygon);
+    svg.appendChild(path1);
+    svg.appendChild(path2);
+    return svg;
+  }
+  function createCloseSvg() {
+    const svg = createSvgElement("svg", {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "2.2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    });
+    const line1 = createSvgElement("line", {
+      x1: "18",
+      y1: "6",
+      x2: "6",
+      y2: "18"
+    });
+    const line2 = createSvgElement("line", {
+      x1: "6",
+      y1: "6",
+      x2: "18",
+      y2: "18"
+    });
+    svg.appendChild(line1);
+    svg.appendChild(line2);
+    return svg;
+  }
+  function createAlertSvg() {
+    const svg = createSvgElement("svg", {
+      width: "32",
+      height: "32",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    });
+    const circle = createSvgElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "10"
+    });
+    const line1 = createSvgElement("line", {
+      x1: "12",
+      y1: "8",
+      x2: "12",
+      y2: "12"
+    });
+    const line2 = createSvgElement("line", {
+      x1: "12",
+      y1: "16",
+      x2: "12.01",
+      y2: "16"
+    });
+    svg.appendChild(circle);
+    svg.appendChild(line1);
+    svg.appendChild(line2);
+    return svg;
+  }
   var PopupView = class {
     constructor() {
       this.host = null;
@@ -207,7 +277,7 @@
         audioBtn.className = "dict-btn dict-audio-btn";
         audioBtn.title = "Listen to pronunciation";
         audioBtn.setAttribute("aria-label", "Listen to pronunciation");
-        audioBtn.appendChild(createSvg(SVG_SPEAKER));
+        audioBtn.appendChild(createSpeakerSvg());
         audioBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.playAudio(word, audioUrl, audioBtn);
@@ -218,7 +288,7 @@
       closeBtn.className = "dict-btn dict-close-btn";
       closeBtn.title = "Close";
       closeBtn.setAttribute("aria-label", "Close");
-      closeBtn.appendChild(createSvg(SVG_CLOSE));
+      closeBtn.appendChild(createCloseSvg());
       closeBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.dismiss();
@@ -301,7 +371,7 @@
       errorView.className = "dict-error-view";
       const icon = document.createElement("div");
       icon.className = "dict-error-icon";
-      icon.appendChild(createSvg(SVG_ALERT));
+      icon.appendChild(createAlertSvg());
       errorView.appendChild(icon);
       const title = document.createElement("div");
       title.className = "dict-error-title";
@@ -432,7 +502,403 @@
   };
 
   // src/content/popup-styles.js
-  var POPUP_STYLES = '/* ==========================================================================\n   English Dictionary Firefox Addon - Shadow DOM Popup Styles\n   Glassmorphic, Modern, Responsive & Dynamic Card\n   ========================================================================== */\n\n:host {\n  all: initial;\n  position: fixed;\n  z-index: 2147483647;\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;\n  font-size: 14px;\n  line-height: 1.5;\n  color: #1e293b;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\n/* Light Theme Variables (Default) */\n.dict-card {\n  --bg-primary: rgba(255, 255, 255, 0.94);\n  --bg-surface: #f8fafc;\n  --bg-hover: #f1f5f9;\n  --text-primary: #0f172a;\n  --text-secondary: #475569;\n  --text-muted: #64748b;\n  --accent-color: #4f46e5;\n  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  --accent-light: #e0e7ff;\n  --border-color: rgba(226, 232, 240, 0.9);\n  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);\n  --pill-bg: #eef2ff;\n  --pill-color: #4338ca;\n  --example-border: #6366f1;\n}\n\n/* Dark Theme Support */\n@media (prefers-color-scheme: dark) {\n  .dict-card {\n    --bg-primary: rgba(15, 23, 42, 0.94);\n    --bg-surface: #1e293b;\n    --bg-hover: #334155;\n    --text-primary: #f8fafc;\n    --text-secondary: #cbd5e1;\n    --text-muted: #94a3b8;\n    --accent-color: #818cf8;\n    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);\n    --accent-light: rgba(99, 102, 241, 0.2);\n    --border-color: rgba(51, 65, 85, 0.85);\n    --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -6px rgba(0, 0, 0, 0.35);\n    --pill-bg: rgba(99, 102, 241, 0.18);\n    --pill-color: #a5b4fc;\n    --example-border: #818cf8;\n  }\n}\n\n/* Explicit class theme overrides */\n.dict-card.theme-dark {\n  --bg-primary: rgba(15, 23, 42, 0.94);\n  --bg-surface: #1e293b;\n  --bg-hover: #334155;\n  --text-primary: #f8fafc;\n  --text-secondary: #cbd5e1;\n  --text-muted: #94a3b8;\n  --accent-color: #818cf8;\n  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);\n  --accent-light: rgba(99, 102, 241, 0.2);\n  --border-color: rgba(51, 65, 85, 0.85);\n  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45);\n  --pill-bg: rgba(99, 102, 241, 0.18);\n  --pill-color: #a5b4fc;\n  --example-border: #818cf8;\n}\n\n.dict-card.theme-light {\n  --bg-primary: rgba(255, 255, 255, 0.94);\n  --bg-surface: #f8fafc;\n  --bg-hover: #f1f5f9;\n  --text-primary: #0f172a;\n  --text-secondary: #475569;\n  --text-muted: #64748b;\n  --accent-color: #4f46e5;\n  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  --accent-light: #e0e7ff;\n  --border-color: rgba(226, 232, 240, 0.9);\n  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12);\n  --pill-bg: #eef2ff;\n  --pill-color: #4338ca;\n  --example-border: #6366f1;\n}\n\n/* Card Container */\n.dict-card {\n  width: 340px;\n  max-width: calc(100vw - 24px);\n  max-height: 420px;\n  background: var(--bg-primary);\n  backdrop-filter: blur(18px);\n  -webkit-backdrop-filter: blur(18px);\n  border: 1px solid var(--border-color);\n  border-radius: 16px;\n  box-shadow: var(--shadow-lg);\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n  animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;\n  transform-origin: top left;\n  user-select: text;\n  overscroll-behavior: contain;\n}\n\n@keyframes dictFadeInScale {\n  from {\n    opacity: 0;\n    transform: translateY(6px) scale(0.97);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0) scale(1);\n  }\n}\n\n/* Header */\n.dict-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px 14px 10px 16px;\n  border-bottom: 1px solid var(--border-color);\n  background: var(--bg-surface);\n}\n\n.dict-title-group {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  overflow: hidden;\n}\n\n.dict-word {\n  font-size: 18px;\n  font-weight: 700;\n  color: var(--text-primary);\n  letter-spacing: -0.01em;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n\n.dict-phonetic {\n  font-size: 12.5px;\n  color: var(--text-muted);\n  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;\n}\n\n.dict-header-actions {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex-shrink: 0;\n}\n\n/* Buttons */\n.dict-btn {\n  background: transparent;\n  border: none;\n  border-radius: 8px;\n  cursor: pointer;\n  padding: 5px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: var(--text-secondary);\n  transition: all 0.15s ease;\n}\n\n.dict-btn:hover {\n  background: var(--bg-hover);\n  color: var(--text-primary);\n}\n\n.dict-btn:active {\n  transform: scale(0.93);\n}\n\n/* Audio Speaker Button */\n.dict-audio-btn {\n  width: 28px;\n  height: 28px;\n  border-radius: 50%;\n  color: var(--accent-color);\n  background: var(--accent-light);\n  transition: transform 0.15s ease, background-color 0.15s ease;\n}\n\n.dict-audio-btn:hover {\n  background: var(--accent-color);\n  color: #ffffff;\n  transform: scale(1.06);\n}\n\n.dict-audio-btn.playing {\n  animation: dictPulse 0.9s infinite alternate;\n}\n\n@keyframes dictPulse {\n  from { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }\n  to { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }\n}\n\n/* Close Button */\n.dict-close-btn {\n  width: 26px;\n  height: 26px;\n  border-radius: 50%;\n  color: var(--text-muted);\n}\n\n.dict-close-btn:hover {\n  background: rgba(239, 68, 68, 0.12);\n  color: #ef4444;\n}\n\n/* Body / Scrollable Content */\n.dict-body {\n  padding: 14px 16px;\n  overflow-y: auto;\n  flex: 1;\n  scrollbar-width: thin;\n  scrollbar-color: var(--border-color) transparent;\n  overscroll-behavior: contain;\n}\n\n.dict-body::-webkit-scrollbar {\n  width: 5px;\n}\n\n.dict-body::-webkit-scrollbar-thumb {\n  background-color: var(--border-color);\n  border-radius: 10px;\n}\n\n/* Meaning Group */\n.dict-meaning-group {\n  margin-bottom: 14px;\n}\n\n.dict-meaning-group:last-child {\n  margin-bottom: 0;\n}\n\n.dict-pos-badge {\n  display: inline-block;\n  font-size: 11px;\n  font-weight: 700;\n  text-transform: uppercase;\n  letter-spacing: 0.05em;\n  padding: 2px 8px;\n  border-radius: 20px;\n  background: var(--pill-bg);\n  color: var(--pill-color);\n  margin-bottom: 8px;\n}\n\n.dict-definitions-list {\n  margin: 0;\n  padding-left: 18px;\n}\n\n.dict-def-item {\n  font-size: 13.5px;\n  color: var(--text-primary);\n  margin-bottom: 8px;\n  line-height: 1.45;\n}\n\n.dict-def-item:last-child {\n  margin-bottom: 0;\n}\n\n.dict-example {\n  margin-top: 4px;\n  padding-left: 8px;\n  border-left: 2px solid var(--example-border);\n  font-size: 12.5px;\n  color: var(--text-muted);\n  font-style: italic;\n  line-height: 1.4;\n}\n\n.dict-synonyms {\n  margin-top: 6px;\n  font-size: 11.5px;\n  color: var(--text-muted);\n}\n\n.dict-synonyms span {\n  color: var(--accent-color);\n  font-weight: 500;\n}\n\n/* Loading State */\n.dict-loading-view {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 28px 16px;\n  gap: 12px;\n  color: var(--text-muted);\n}\n\n.dict-spinner {\n  width: 24px;\n  height: 24px;\n  border: 2.5px solid var(--border-color);\n  border-top-color: var(--accent-color);\n  border-radius: 50%;\n  animation: dictSpin 0.7s linear infinite;\n}\n\n@keyframes dictSpin {\n  to { transform: rotate(360deg); }\n}\n\n/* Empty & Error State */\n.dict-error-view {\n  padding: 24px 18px;\n  text-align: center;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 8px;\n}\n\n.dict-error-icon {\n  width: 32px;\n  height: 32px;\n  color: #f59e0b;\n  margin-bottom: 2px;\n}\n\n.dict-error-title {\n  font-size: 14px;\n  font-weight: 600;\n  color: var(--text-primary);\n}\n\n.dict-error-desc {\n  font-size: 12.5px;\n  color: var(--text-muted);\n  line-height: 1.4;\n  margin: 0;\n}\n';
+  var POPUP_STYLES = `/* ==========================================================================
+   English Dictionary Firefox Addon - Shadow DOM Popup Styles
+   Glassmorphic, Modern, Responsive & Dynamic Card
+   ========================================================================== */
+
+:host {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Light Theme Variables (Default) */
+.dict-card {
+  --bg-primary: rgba(255, 255, 255, 0.94);
+  --bg-surface: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent-color: #4f46e5;
+  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --accent-light: #e0e7ff;
+  --border-color: rgba(226, 232, 240, 0.9);
+  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);
+  --pill-bg: #eef2ff;
+  --pill-color: #4338ca;
+  --example-border: #6366f1;
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+  .dict-card {
+    --bg-primary: rgba(15, 23, 42, 0.94);
+    --bg-surface: #1e293b;
+    --bg-hover: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --accent-color: #818cf8;
+    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --accent-light: rgba(99, 102, 241, 0.2);
+    --border-color: rgba(51, 65, 85, 0.85);
+    --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -6px rgba(0, 0, 0, 0.35);
+    --pill-bg: rgba(99, 102, 241, 0.18);
+    --pill-color: #a5b4fc;
+    --example-border: #818cf8;
+  }
+}
+
+/* Explicit class theme overrides */
+.dict-card.theme-dark {
+  --bg-primary: rgba(15, 23, 42, 0.94);
+  --bg-surface: #1e293b;
+  --bg-hover: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent-color: #818cf8;
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --accent-light: rgba(99, 102, 241, 0.2);
+  --border-color: rgba(51, 65, 85, 0.85);
+  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45);
+  --pill-bg: rgba(99, 102, 241, 0.18);
+  --pill-color: #a5b4fc;
+  --example-border: #818cf8;
+}
+
+.dict-card.theme-light {
+  --bg-primary: rgba(255, 255, 255, 0.94);
+  --bg-surface: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent-color: #4f46e5;
+  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --accent-light: #e0e7ff;
+  --border-color: rgba(226, 232, 240, 0.9);
+  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12);
+  --pill-bg: #eef2ff;
+  --pill-color: #4338ca;
+  --example-border: #6366f1;
+}
+
+/* Card Container */
+.dict-card {
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  max-height: 420px;
+  background: var(--bg-primary);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top left;
+  user-select: text;
+  overscroll-behavior: contain;
+}
+
+@keyframes dictFadeInScale {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Header */
+.dict-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.dict-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.dict-word {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dict-phonetic {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+.dict-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Buttons */
+.dict-btn {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.dict-btn svg {
+  display: block;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.dict-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dict-btn:active {
+  transform: scale(0.93);
+}
+
+/* Audio Speaker Button */
+.dict-audio-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 50%;
+  color: var(--accent-color);
+  background: var(--accent-light);
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-audio-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dict-audio-btn:hover {
+  background: var(--accent-color);
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+.dict-audio-btn.playing {
+  animation: dictPulse 0.9s infinite alternate;
+}
+
+@keyframes dictPulse {
+  from { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  to { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
+}
+
+/* Close Button */
+.dict-close-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-close-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.dict-close-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* Body / Scrollable Content */
+.dict-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+  overscroll-behavior: contain;
+}
+
+.dict-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.dict-body::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 10px;
+}
+
+/* Meaning Group */
+.dict-meaning-group {
+  margin-bottom: 14px;
+}
+
+.dict-meaning-group:last-child {
+  margin-bottom: 0;
+}
+
+.dict-pos-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--pill-bg);
+  color: var(--pill-color);
+  margin-bottom: 8px;
+}
+
+.dict-definitions-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.dict-def-item {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.45;
+}
+
+.dict-def-item:last-child {
+  margin-bottom: 0;
+}
+
+.dict-example {
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--example-border);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.dict-synonyms {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.dict-synonyms span {
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+/* Loading State */
+.dict-loading-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.dict-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: dictSpin 0.7s linear infinite;
+}
+
+@keyframes dictSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty & Error State */
+.dict-error-view {
+  padding: 24px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dict-error-icon {
+  width: 32px;
+  height: 32px;
+  color: #f59e0b;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-error-icon svg {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.dict-error-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dict-error-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+`;
 
   // src/content/content.js
   var popupView = new PopupView();

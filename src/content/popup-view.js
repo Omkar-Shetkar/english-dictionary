@@ -6,38 +6,109 @@
 
 const HOST_ELEMENT_ID = 'eng-dict-firefox-host-root';
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
 /**
- * Creates SVG element from markup safely without innerHTML on host documents.
+ * Creates SVG elements with the proper SVG namespace to guarantee rendering in Shadow DOM.
  */
-function createSvg(markup) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(markup.trim(), 'image/svg+xml');
-  const svg = doc.documentElement;
-  return document.importNode(svg, true);
+function createSvgElement(tag, attrs = {}) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [key, val] of Object.entries(attrs)) {
+    el.setAttribute(key, val);
+  }
+  return el;
 }
 
-const SVG_SPEAKER = `
-<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-</svg>
-`;
+function createSpeakerSvg() {
+  const svg = createSvgElement('svg', {
+    width: '15',
+    height: '15',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '2.2',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round'
+  });
+  const polygon = createSvgElement('polygon', {
+    points: '11 5 6 9 2 9 2 15 6 15 11 19 11 5',
+    fill: 'currentColor'
+  });
+  const path1 = createSvgElement('path', {
+    d: 'M15.54 8.46a5 5 0 0 1 0 7.07',
+    fill: 'none'
+  });
+  const path2 = createSvgElement('path', {
+    d: 'M19.07 4.93a10 10 0 0 1 0 14.14',
+    fill: 'none'
+  });
+  svg.appendChild(polygon);
+  svg.appendChild(path1);
+  svg.appendChild(path2);
+  return svg;
+}
 
-const SVG_CLOSE = `
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <line x1="18" y1="6" x2="6" y2="18"></line>
-  <line x1="6" y1="6" x2="18" y2="18"></line>
-</svg>
-`;
+function createCloseSvg() {
+  const svg = createSvgElement('svg', {
+    width: '14',
+    height: '14',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '2.2',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round'
+  });
+  const line1 = createSvgElement('line', {
+    x1: '18',
+    y1: '6',
+    x2: '6',
+    y2: '18'
+  });
+  const line2 = createSvgElement('line', {
+    x1: '6',
+    y1: '6',
+    x2: '18',
+    y2: '18'
+  });
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
 
-const SVG_ALERT = `
-<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"></circle>
-  <line x1="12" y1="8" x2="12" y2="12"></line>
-  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-</svg>
-`;
+function createAlertSvg() {
+  const svg = createSvgElement('svg', {
+    width: '32',
+    height: '32',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '2',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round'
+  });
+  const circle = createSvgElement('circle', {
+    cx: '12',
+    cy: '12',
+    r: '10'
+  });
+  const line1 = createSvgElement('line', {
+    x1: '12',
+    y1: '8',
+    x2: '12',
+    y2: '12'
+  });
+  const line2 = createSvgElement('line', {
+    x1: '12',
+    y1: '16',
+    x2: '12.01',
+    y2: '16'
+  });
+  svg.appendChild(circle);
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
 
 export class PopupView {
   constructor() {
@@ -117,7 +188,7 @@ export class PopupView {
       audioBtn.className = 'dict-btn dict-audio-btn';
       audioBtn.title = 'Listen to pronunciation';
       audioBtn.setAttribute('aria-label', 'Listen to pronunciation');
-      audioBtn.appendChild(createSvg(SVG_SPEAKER));
+      audioBtn.appendChild(createSpeakerSvg());
       audioBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.playAudio(word, audioUrl, audioBtn);
@@ -129,7 +200,7 @@ export class PopupView {
     closeBtn.className = 'dict-btn dict-close-btn';
     closeBtn.title = 'Close';
     closeBtn.setAttribute('aria-label', 'Close');
-    closeBtn.appendChild(createSvg(SVG_CLOSE));
+    closeBtn.appendChild(createCloseSvg());
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.dismiss();
@@ -239,7 +310,7 @@ export class PopupView {
 
     const icon = document.createElement('div');
     icon.className = 'dict-error-icon';
-    icon.appendChild(createSvg(SVG_ALERT));
+    icon.appendChild(createAlertSvg());
     errorView.appendChild(icon);
 
     const title = document.createElement('div');

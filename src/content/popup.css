@@ -15,6 +15,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 /* Light Theme Variables (Default) */
 .dict-card {
   --bg-primary: rgba(255, 255, 255, 0.94);
@@ -165,12 +169,20 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  padding: 5px;
-  display: flex;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
   transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.dict-btn svg {
+  display: block;
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
 .dict-btn:hover {
@@ -186,16 +198,27 @@
 .dict-audio-btn {
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   border-radius: 50%;
   color: var(--accent-color);
   background: var(--accent-light);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-audio-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
 .dict-audio-btn:hover {
   background: var(--accent-color);
   color: #ffffff;
-  transform: scale(1.06);
+  transform: scale(1.08);
 }
 
 .dict-audio-btn.playing {
@@ -211,8 +234,19 @@
 .dict-close-btn {
   width: 26px;
   height: 26px;
+  min-width: 26px;
+  min-height: 26px;
   border-radius: 50%;
   color: var(--text-muted);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-close-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .dict-close-btn:hover {
@@ -337,6 +371,15 @@
   height: 32px;
   color: #f59e0b;
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-error-icon svg {
+  width: 32px;
+  height: 32px;
+  display: block;
 }
 
 .dict-error-title {
