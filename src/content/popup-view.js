@@ -74,9 +74,14 @@ export class PopupView {
 
     document.documentElement.appendChild(this.host);
 
+    // Stop wheel events inside popup from bubbling to window or triggering page scroll
+    this.host.addEventListener('wheel', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+
     document.addEventListener('mousedown', this._handleOutsideClick, true);
     window.addEventListener('keydown', this._handleKeydown, true);
-    window.addEventListener('scroll', this._handleScroll, { passive: true, capture: true });
+    window.addEventListener('scroll', this._handleScroll, { passive: true });
   }
 
   _updatePosition(coords) {
@@ -311,7 +316,7 @@ export class PopupView {
 
     document.removeEventListener('mousedown', this._handleOutsideClick, true);
     window.removeEventListener('keydown', this._handleKeydown, true);
-    window.removeEventListener('scroll', this._handleScroll, { capture: true });
+    window.removeEventListener('scroll', this._handleScroll);
   }
 
   _handleOutsideClick(event) {
@@ -326,7 +331,16 @@ export class PopupView {
     }
   }
 
-  _handleScroll() {
+  _handleScroll(event) {
+    // If scroll occurred inside the popup card or shadow DOM, do not dismiss
+    if (this.host) {
+      if (event.target === this.host) return;
+      if (this.host.contains(event.target)) return;
+      const path = event.composedPath ? event.composedPath() : [];
+      if (path.includes(this.host) || (this.shadowRoot && path.includes(this.shadowRoot))) {
+        return;
+      }
+    }
     this.dismiss();
   }
 }

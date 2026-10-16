@@ -105,6 +105,7 @@
   animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: top left;
   user-select: text;
+  overscroll-behavior: contain;
 }
 
 @keyframes dictFadeInScale {
@@ -226,6 +227,7 @@
   flex: 1;
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) transparent;
+  overscroll-behavior: contain;
 }
 
 .dict-body::-webkit-scrollbar {
