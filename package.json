@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "npm run build && web-ext lint --source-dir src",
-    "start": "npm run build && web-ext run --source-dir src"
+    "start": "npm run build && web-ext run --source-dir src",
+    "package": "npm run build && web-ext build --source-dir src --artifacts-dir web-ext-artifacts --overwrite-dest",
+    "package:source": "git archive -o web-ext-artifacts/source-code.zip HEAD"
   },
   "keywords": [
     "firefox-addon",

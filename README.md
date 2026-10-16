@@ -63,6 +63,32 @@ npm run lint
 
 ---
 
+## 📦 Packaging & Publishing (Mozilla AMO)
+
+### 1. Build & Package
+Generate the production zip package and clean source code archive for Mozilla reviewers:
+
+```bash
+# Package extension into web-ext-artifacts/
+npm run package
+
+# Create source code archive (required by AMO for esbuild bundled code)
+npm run package:source
+```
+
+### 2. Submit to Firefox Add-ons (AMO)
+1. Log in to [AMO Developer Hub](https://addons.mozilla.org/developers/).
+2. Click **Submit a New Add-on**.
+3. Select distribution: **On this site** (publicly listed on AMO) or **On your own** (unlisted/self-hosted).
+4. Upload `web-ext-artifacts/english_dictionary_-_double-click_lookup-1.0.0.zip`.
+5. Under **Source Code Submission**, select **Yes** and upload `web-ext-artifacts/source-code.zip` with build instructions:
+   ```bash
+   npm install && npm run build
+   ```
+6. Fill in listing metadata (name, description, tags, screenshots) and submit for review.
+
+---
+
 ## 🛠️ Project Structure
 
 ```text
