@@ -6,12 +6,6 @@
 import { lookupWord } from './dictionary-service.js';
 import { getSettings } from '../common/storage.js';
 
-// Resolve browser / chrome runtime namespace
-const runtime = typeof browser !== 'undefined' ? browser.runtime : chrome.runtime;
-
-/**
- * Handle incoming messages from content scripts and options UI.
- */
 async function handleMessage(message, sender) {
   if (!message || typeof message !== 'object') {
     return { status: 'error', errorMessage: 'Invalid message payload' };
@@ -32,20 +26,21 @@ async function handleMessage(message, sender) {
   }
 }
 
-// Register listener with promise return support (Firefox WebExtensions)
-runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // If the consumer uses sendResponse (Chrome callback style) or returns a Promise (Firefox style)
-  const promise = handleMessage(message, sender);
+// In Firefox, browser.runtime is native and promises are returned from the listener.
+// In Chrome, chrome.runtime uses sendResponse callback and returns true.
+const isFirefox = typeof browser !== 'undefined' && Boolean(browser.runtime?.id);
 
-  // Returning a Promise tells Firefox to wait for the resolution
-  if (typeof sendResponse === 'function') {
-    promise.then(sendResponse).catch((err) => {
-      sendResponse({ status: 'error', errorMessage: err.message || 'Internal background error' });
-    });
-    return true; // Keep channel open for async response in Chrome
-  }
-
-  return promise;
-});
+if (isFirefox) {
+  browser.runtime.onMessage.addListener((message, sender) => {
+    return handleMessage(message, sender);
+  });
+} else if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    handleMessage(message, sender)
+      .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ status: 'error', errorMessage: err.message || 'Internal background error' }));
+    return true;
+  });
+}
 
 console.log('[English Dictionary] Background service initialized.');

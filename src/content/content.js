@@ -9,8 +9,6 @@ import { matchesModifier, getSettings } from '../common/storage.js';
 import { PopupView } from './popup-view.js';
 import { POPUP_STYLES } from './popup-styles.js';
 
-const runtime = typeof browser !== 'undefined' ? browser.runtime : chrome.runtime;
-
 const popupView = new PopupView();
 popupView.setStyles(POPUP_STYLES);
 
@@ -43,6 +41,38 @@ if (storageArea && storageArea.onChanged) {
       activeConfig = changes.settings.newValue;
     }
   });
+}
+
+/**
+ * Safe message dispatcher supporting Firefox native promises and Chrome callback styles.
+ * @param {object} payload
+ * @returns {Promise<object>}
+ */
+async function sendBackgroundMessage(payload) {
+  if (typeof browser !== 'undefined' && browser.runtime?.sendMessage) {
+    try {
+      const res = await browser.runtime.sendMessage(payload);
+      if (res !== undefined) {
+        return res;
+      }
+    } catch (err) {
+      console.warn('[Dictionary Addon] browser.runtime.sendMessage error:', err);
+    }
+  }
+
+  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(payload, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ status: 'error', errorMessage: chrome.runtime.lastError.message });
+        } else {
+          resolve(response || { status: 'error', errorMessage: 'Empty response from background service' });
+        }
+      });
+    });
+  }
+
+  return { status: 'error', errorMessage: 'Extension runtime not available.' };
 }
 
 /**
@@ -91,7 +121,7 @@ document.addEventListener('dblclick', async (event) => {
   popupView.showLoading(word, coords, activeConfig.theme);
 
   try {
-    const response = await runtime.sendMessage({
+    const response = await sendBackgroundMessage({
       action: 'LOOKUP_WORD',
       word
     });

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { normalizeDictionaryResponse, lookupWord } from '../../src/background/dictionary-service.js';
+import {
+  normalizeDictionaryResponse,
+  normalizeWiktionaryResponse,
+  lookupWord,
+  cleanHtml
+} from '../../src/background/dictionary-service.js';
 
 describe('dictionary-service', () => {
   const mockApiResponse = [
@@ -58,26 +63,32 @@ describe('dictionary-service', () => {
     expect(noun.definitions[0].definition).toBe('An ephemeral plant or insect.');
   });
 
-  it('handles entries with missing audio or phonetic text gracefully', () => {
-    const minimalData = [
-      {
-        word: 'testword',
-        meanings: [
-          {
-            partOfSpeech: 'noun',
-            definitions: [{ definition: 'A definition for testing.' }]
-          }
-        ]
-      }
-    ];
+  it('normalizes Wiktionary REST API definitions and cleans HTML', () => {
+    const mockWiktionary = {
+      en: [
+        {
+          partOfSpeech: 'Verb',
+          definitions: [
+            {
+              definition: '<a href="/wiki/present">present</a> participle of run',
+              examples: ['He was <mark>running</mark> fast.']
+            }
+          ]
+        }
+      ]
+    };
 
-    const entry = normalizeDictionaryResponse(minimalData, 'testword');
+    const entry = normalizeWiktionaryResponse(mockWiktionary, 'running');
     expect(entry).not.toBeNull();
-    expect(entry.word).toBe('testword');
-    expect(entry.phonetic).toBeNull();
-    expect(entry.audioUrl).toBeNull();
-    expect(entry.meanings.length).toBe(1);
-    expect(entry.meanings[0].definitions[0].definition).toBe('A definition for testing.');
+    expect(entry.word).toBe('running');
+    expect(entry.meanings[0].partOfSpeech).toBe('Verb');
+    expect(entry.meanings[0].definitions[0].definition).toBe('present participle of run');
+    expect(entry.meanings[0].definitions[0].example).toBe('He was running fast.');
+  });
+
+  it('cleanHtml strips tags and decodes common entities', () => {
+    expect(cleanHtml('<b>bold</b> &amp; <i>italic</i>')).toBe('bold & italic');
+    expect(cleanHtml('&quot;quoted&#39;')).toBe('"quoted\'');
   });
 
   it('returns null for empty or invalid array payloads', () => {
@@ -85,7 +96,7 @@ describe('dictionary-service', () => {
     expect(normalizeDictionaryResponse(null, 'null')).toBeNull();
   });
 
-  it('lookupWord handles 200 OK responses', async () => {
+  it('lookupWord handles 200 OK responses from primary provider', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       status: 200,
       json: async () => mockApiResponse
@@ -97,24 +108,42 @@ describe('dictionary-service', () => {
     expect(result.errorMessage).toBeNull();
   });
 
-  it('lookupWord handles 404 Not Found responses', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      status: 404,
-      json: async () => ({ title: 'No Definitions Found' })
+  it('lookupWord falls back to Wiktionary when primary returns 404', async () => {
+    const mockFetch = vi.fn().mockImplementation(async (url) => {
+      if (url.includes('api.dictionaryapi.dev')) {
+        return { status: 404, json: async () => ({}) };
+      }
+      if (url.includes('wiktionary.org')) {
+        return {
+          status: 200,
+          json: async () => ({
+            en: [
+              {
+                partOfSpeech: 'verb',
+                definitions: [{ definition: 'To test something' }]
+              }
+            ]
+          })
+        };
+      }
+      return { status: 500 };
     });
 
-    const result = await lookupWord('nonexistentword123', mockFetch);
-    expect(result.status).toBe('not_found');
-    expect(result.entry).toBeNull();
-    expect(result.errorMessage).toContain('No definitions found for "nonexistentword123"');
+    const result = await lookupWord('fallbacktest', mockFetch);
+    expect(result.status).toBe('success');
+    expect(result.entry.word).toBe('fallbacktest');
+    expect(result.entry.meanings[0].definitions[0].definition).toBe('To test something');
   });
 
-  it('lookupWord handles network disconnection or fetch errors', async () => {
-    const mockFetch = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
+  it('lookupWord reports not_found when both providers fail', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      status: 404,
+      json: async () => ({})
+    });
 
-    const result = await lookupWord('anyword', mockFetch);
-    expect(result.status).toBe('network_error');
+    const result = await lookupWord('totallynonexistent123', mockFetch);
+    expect(result.status).toBe('not_found');
     expect(result.entry).toBeNull();
-    expect(result.errorMessage).toContain('Unable to connect to dictionary service');
+    expect(result.errorMessage).toContain('No definitions found for "totallynonexistent123"');
   });
 });

@@ -239,7 +239,8 @@ export class PopupView {
 
     const title = document.createElement('div');
     title.className = 'dict-error-title';
-    title.textContent = 'No Definitions Found';
+    const isNetwork = message && (message.includes('internet') || message.includes('connect') || message.includes('timed out'));
+    title.textContent = isNetwork ? 'Connection Issue' : 'No Definitions Found';
     errorView.appendChild(title);
 
     const desc = document.createElement('p');

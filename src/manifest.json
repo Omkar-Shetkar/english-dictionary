@@ -9,8 +9,7 @@
     "128": "icons/icon-128.png"
   },
   "background": {
-    "scripts": ["background/background.js"],
-    "type": "module"
+    "scripts": ["background/background.bundle.js"]
   },
   "content_scripts": [
     {
@@ -35,7 +34,8 @@
     "storage"
   ],
   "host_permissions": [
-    "https://api.dictionaryapi.dev/*"
+    "https://api.dictionaryapi.dev/*",
+    "https://en.wiktionary.org/*"
   ],
   "browser_specific_settings": {
     "gecko": {
