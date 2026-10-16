@@ -1,10 +1,26 @@
 /**
- * Options page controller: Loads, binds, and persists user settings.
+ * Options page controller: Loads, binds, and persists user settings,
+ * and provides live interactive testing of dictionary popups.
  */
 
-import { getSettings, saveSettings } from '../common/storage.js';
+import { getSettings, saveSettings, matchesModifier } from '../common/storage.js';
+import { sanitizeWord } from '../common/sanitize.js';
+import { calculatePopupPosition } from '../common/position.js';
+import { PopupView } from '../content/popup-view.js';
+import { POPUP_STYLES } from '../content/popup-styles.js';
+import { lookupWord } from '../background/dictionary-service.js';
+
+const popupView = new PopupView();
+popupView.setStyles(POPUP_STYLES);
 
 let saveTimeout = null;
+let hintTimeout = null;
+
+let activeConfig = {
+  modifierKey: 'none',
+  enabled: true,
+  theme: 'auto'
+};
 
 function flashSavedBadge() {
   const badge = document.getElementById('saveStatus');
@@ -17,25 +33,151 @@ function flashSavedBadge() {
   }, 1600);
 }
 
+function showHint(message) {
+  const hintEl = document.getElementById('testHint');
+  if (!hintEl) return;
+
+  hintEl.textContent = message;
+  hintEl.classList.add('visible');
+
+  if (hintTimeout) clearTimeout(hintTimeout);
+  hintTimeout = setTimeout(() => {
+    hintEl.classList.remove('visible');
+  }, 2800);
+}
+
+async function sendBackgroundMessage(payload) {
+  if (typeof browser !== 'undefined' && browser.runtime?.sendMessage) {
+    try {
+      const res = await browser.runtime.sendMessage(payload);
+      if (res !== undefined) return res;
+    } catch (err) {
+      console.warn('[Dictionary Addon] browser.runtime.sendMessage error:', err);
+    }
+  }
+
+  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    try {
+      return await new Promise((resolve) => {
+        chrome.runtime.sendMessage(payload, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve({ status: 'error', errorMessage: chrome.runtime.lastError.message });
+          } else {
+            resolve(response || { status: 'error', errorMessage: 'Empty response' });
+          }
+        });
+      });
+    } catch (err) {
+      console.warn('[Dictionary Addon] chrome.runtime.sendMessage error:', err);
+    }
+  }
+
+  // Fallback to direct lookup if extension background message channel is unreachable
+  if (payload.action === 'LOOKUP_WORD' && payload.word) {
+    return lookupWord(payload.word);
+  }
+
+  return { status: 'error', errorMessage: 'Extension runtime not available.' };
+}
+
+async function handleDoubleClick(event) {
+  if (!activeConfig.enabled) {
+    const sandbox = document.querySelector('.test-sandbox');
+    if (sandbox && (sandbox.contains(event.target) || event.target.closest('.test-area'))) {
+      showHint('⚠️ Double-Click Lookup is currently disabled above.');
+    }
+    return;
+  }
+
+  if (!matchesModifier(event, activeConfig.modifierKey)) {
+    const sandbox = document.querySelector('.test-sandbox');
+    if (sandbox && (sandbox.contains(event.target) || event.target.closest('.test-area'))) {
+      const keyName = activeConfig.modifierKey === 'alt' ? 'Alt / Option'
+        : activeConfig.modifierKey === 'ctrl' ? 'Ctrl / Cmd'
+        : activeConfig.modifierKey === 'shift' ? 'Shift' : '';
+      showHint(`💡 Hold the [${keyName}] key while double-clicking to trigger lookup.`);
+    }
+    return;
+  }
+
+  let text = '';
+  let anchorRect = null;
+
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0) {
+    text = selection.toString();
+    const range = selection.getRangeAt(0);
+    anchorRect = range.getBoundingClientRect();
+  }
+
+  // If selection text is empty or clicked directly on a demo word
+  if (!text.trim() && event.target && event.target.classList.contains('demo-word')) {
+    text = event.target.textContent;
+    anchorRect = event.target.getBoundingClientRect();
+  }
+
+  const { isValid, word } = sanitizeWord(text);
+  if (!isValid || !word) {
+    return;
+  }
+
+  if (!anchorRect || (anchorRect.width === 0 && anchorRect.height === 0)) {
+    if (event.target && typeof event.target.getBoundingClientRect === 'function') {
+      anchorRect = event.target.getBoundingClientRect();
+    } else {
+      return;
+    }
+  }
+
+  const coords = calculatePopupPosition({
+    anchorRect,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight
+  });
+
+  popupView.showLoading(word, coords, activeConfig.theme);
+
+  try {
+    const response = await sendBackgroundMessage({
+      action: 'LOOKUP_WORD',
+      word
+    });
+
+    if (!response || response.status !== 'success') {
+      const msg = response?.errorMessage || `No definitions found for "${word}".`;
+      popupView.showError(msg, word, coords, activeConfig.theme);
+      return;
+    }
+
+    popupView.showResult(response.entry, coords, activeConfig.theme);
+  } catch (err) {
+    popupView.showError('Unable to connect to dictionary service. Please check your internet connection.', word, coords, activeConfig.theme);
+  }
+}
+
 async function initializeOptions() {
   const toggleEnabled = document.getElementById('toggleEnabled');
   const themeSelect = document.getElementById('themeSelect');
   const modifierRadios = document.querySelectorAll('input[name="modifierKey"]');
 
   // Load current configuration
-  const config = await getSettings();
+  try {
+    activeConfig = await getSettings();
+  } catch (err) {
+    console.warn('[Dictionary Addon] Failed to load settings:', err);
+  }
 
   // Populate controls
   if (toggleEnabled) {
-    toggleEnabled.checked = config.enabled;
+    toggleEnabled.checked = activeConfig.enabled;
   }
 
   if (themeSelect) {
-    themeSelect.value = config.theme;
+    themeSelect.value = activeConfig.theme;
   }
 
   for (const radio of modifierRadios) {
-    if (radio.value === config.modifierKey) {
+    if (radio.value === activeConfig.modifierKey) {
       radio.checked = true;
     }
   }
@@ -43,6 +185,7 @@ async function initializeOptions() {
   // Handle toggle change
   if (toggleEnabled) {
     toggleEnabled.addEventListener('change', async () => {
+      activeConfig.enabled = toggleEnabled.checked;
       await saveSettings({ enabled: toggleEnabled.checked });
       flashSavedBadge();
     });
@@ -52,6 +195,7 @@ async function initializeOptions() {
   for (const radio of modifierRadios) {
     radio.addEventListener('change', async () => {
       if (radio.checked) {
+        activeConfig.modifierKey = radio.value;
         await saveSettings({ modifierKey: radio.value });
         flashSavedBadge();
       }
@@ -61,10 +205,14 @@ async function initializeOptions() {
   // Handle theme select change
   if (themeSelect) {
     themeSelect.addEventListener('change', async () => {
+      activeConfig.theme = themeSelect.value;
       await saveSettings({ theme: themeSelect.value });
       flashSavedBadge();
     });
   }
+
+  // Attach double-click handler for live testing
+  document.addEventListener('dblclick', handleDoubleClick);
 }
 
 document.addEventListener('DOMContentLoaded', initializeOptions);

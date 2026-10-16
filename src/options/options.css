@@ -330,6 +330,27 @@ kbd {
   border-radius: 4px;
   font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.demo-word:hover {
+  opacity: 0.85;
+}
+
+.test-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d97706;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  min-height: 18px;
+}
+
+.test-hint.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Footer */
