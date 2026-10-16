@@ -217,11 +217,83 @@
     svg.appendChild(line2);
     return svg;
   }
+  var cachedVoices = [];
+  function loadVoices() {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      cachedVoices = window.speechSynthesis.getVoices() || [];
+    }
+  }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== void 0) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }
+  function getBestNaturalVoice() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return null;
+    }
+    const voices = cachedVoices && cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+    const enVoices = voices.filter((v) => v.lang && (v.lang.toLowerCase().startsWith("en") || v.lang.toLowerCase().includes("en")));
+    const pool = enVoices.length > 0 ? enVoices : voices;
+    const naturalKeywords = [
+      "natural",
+      "enhanced",
+      "premium",
+      "neural",
+      "siri",
+      "samantha",
+      "ava",
+      "allison",
+      "zoe",
+      "serena",
+      "karen",
+      "daniel",
+      "oliver",
+      "alex",
+      "google",
+      "jenny",
+      "guy",
+      "aria"
+    ];
+    for (const keyword of naturalKeywords) {
+      const match = pool.find((v) => v.name && v.name.toLowerCase().includes(keyword));
+      if (match) return match;
+    }
+    const enUs = pool.find((v) => v.lang && (v.lang === "en-US" || v.lang === "en_US"));
+    if (enUs) return enUs;
+    const enGb = pool.find((v) => v.lang && (v.lang === "en-GB" || v.lang === "en_GB"));
+    if (enGb) return enGb;
+    const defaultVoice = pool.find((v) => v.default);
+    return defaultVoice || pool[0] || null;
+  }
+  function getCandidateAudioUrls(word, apiAudioUrl) {
+    const urls = [];
+    const cleanWord = (word || "").trim().toLowerCase();
+    if (cleanWord) {
+      urls.push(`https://ssl.gstatic.com/dictionary/static/sounds/20200429/${encodeURIComponent(cleanWord)}--_us_1.mp3`);
+      urls.push(`https://ssl.gstatic.com/dictionary/static/sounds/20200429/${encodeURIComponent(cleanWord)}--_gb_1.mp3`);
+    }
+    if (apiAudioUrl && typeof apiAudioUrl === "string") {
+      let u = apiAudioUrl.trim();
+      if (u.startsWith("//")) u = "https:" + u;
+      if (u.startsWith("http://") || u.startsWith("https://")) {
+        if (!u.includes("api.dictionaryapi.dev/media")) {
+          urls.unshift(u);
+        } else {
+          urls.push(u);
+        }
+      }
+    }
+    return urls;
+  }
   var PopupView = class {
     constructor() {
       this.host = null;
       this.shadowRoot = null;
       this.activeAudio = null;
+      this.audioTimeoutId = null;
       this.cssText = "";
       this._handleOutsideClick = this._handleOutsideClick.bind(this);
       this._handleKeydown = this._handleKeydown.bind(this);
@@ -400,6 +472,10 @@
         this.activeAudio.pause();
         this.activeAudio = null;
       }
+      if (this.audioTimeoutId) {
+        clearTimeout(this.audioTimeoutId);
+        this.audioTimeoutId = null;
+      }
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -407,64 +483,92 @@
       const stopButtonState = () => {
         if (buttonEl) buttonEl.classList.remove("playing");
       };
-      const speakFallback = () => {
+      const speakWithNaturalVoice = () => {
         if (typeof window !== "undefined" && "speechSynthesis" in window && word) {
           try {
             const utterance = new SpeechSynthesisUtterance(word);
-            utterance.lang = "en-US";
-            utterance.rate = 0.9;
+            const naturalVoice = getBestNaturalVoice();
+            if (naturalVoice) {
+              utterance.voice = naturalVoice;
+              utterance.lang = naturalVoice.lang || "en-US";
+            } else {
+              utterance.lang = "en-US";
+            }
+            utterance.rate = 1;
+            utterance.pitch = 1;
             utterance.onend = stopButtonState;
             utterance.onerror = stopButtonState;
             window.speechSynthesis.speak(utterance);
           } catch (synthErr) {
-            console.warn("[Dictionary Addon] Speech synthesis failed:", synthErr);
+            console.warn("[Dictionary Addon] Natural speech synthesis failed:", synthErr);
             stopButtonState();
           }
         } else {
           stopButtonState();
         }
       };
-      if (url && typeof url === "string") {
-        let audioUrl = url.trim();
-        if (audioUrl.startsWith("//")) {
-          audioUrl = "https:" + audioUrl;
+      const candidateUrls = getCandidateAudioUrls(word, url);
+      let candidateIndex = 0;
+      const tryNextCandidate = () => {
+        if (candidateIndex >= candidateUrls.length) {
+          speakWithNaturalVoice();
+          return;
         }
+        const audioUrl = candidateUrls[candidateIndex++];
         try {
           const audio = new Audio(audioUrl);
           this.activeAudio = audio;
-          let fallbackTriggered = false;
-          const triggerFallback = () => {
-            if (fallbackTriggered) return;
-            fallbackTriggered = true;
+          let handled = false;
+          const advance2 = () => {
+            if (handled) return;
+            handled = true;
+            if (this.audioTimeoutId) {
+              clearTimeout(this.audioTimeoutId);
+              this.audioTimeoutId = null;
+            }
             this.activeAudio = null;
-            speakFallback();
+            tryNextCandidate();
+          };
+          this.audioTimeoutId = setTimeout(() => {
+            advance2();
+          }, 1500);
+          audio.onplaying = () => {
+            if (this.audioTimeoutId) {
+              clearTimeout(this.audioTimeoutId);
+              this.audioTimeoutId = null;
+            }
           };
           audio.onended = () => {
+            if (this.audioTimeoutId) {
+              clearTimeout(this.audioTimeoutId);
+              this.audioTimeoutId = null;
+            }
             stopButtonState();
             this.activeAudio = null;
           };
           audio.onerror = () => {
-            triggerFallback();
+            advance2();
           };
           const playPromise = audio.play();
           if (playPromise !== void 0) {
-            playPromise.catch((err) => {
-              console.warn("[Dictionary Addon] Audio playback failed, falling back to speech synthesis:", err);
-              triggerFallback();
+            playPromise.catch(() => {
+              advance2();
             });
           }
         } catch (err) {
-          console.warn("[Dictionary Addon] Audio initialization failed, falling back to speech synthesis:", err);
-          speakFallback();
+          advance();
         }
-      } else {
-        speakFallback();
-      }
+      };
+      tryNextCandidate();
     }
     dismiss() {
       if (this.activeAudio) {
         this.activeAudio.pause();
         this.activeAudio = null;
+      }
+      if (this.audioTimeoutId) {
+        clearTimeout(this.audioTimeoutId);
+        this.audioTimeoutId = null;
       }
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
