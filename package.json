@@ -1,0 +1,29 @@
+{
+  "name": "english-dictionary-firefox",
+  "version": "1.0.0",
+  "description": "Simple and intuitive English dictionary Firefox addon for instant word lookup on double-click.",
+  "type": "module",
+  "scripts": {
+    "build:content": "esbuild src/content/content.js --bundle --outfile=src/content/content.bundle.js --format=iife",
+    "build:background": "esbuild src/background/background.js --bundle --outfile=src/background/background.bundle.js",
+    "build": "npm run build:content && npm run build:background",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "npm run build && web-ext lint --source-dir src",
+    "start": "npm run build && web-ext run --source-dir src"
+  },
+  "keywords": [
+    "firefox-addon",
+    "dictionary",
+    "webextension",
+    "english",
+    "pronunciation",
+    "definitions"
+  ],
+  "author": "Omkar Shetkar",
+  "license": "MIT",
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "web-ext": "^8.2.0"
+  }
+}
