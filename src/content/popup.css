@@ -135,6 +135,14 @@
 
 .dict-title-group {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.dict-title-row {
+  display: flex;
   align-items: baseline;
   gap: 8px;
   overflow: hidden;
@@ -144,6 +152,30 @@
   font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dict-acronym-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: var(--accent-light);
+  color: var(--accent-color);
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.dict-acronym-expansion {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-color);
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -282,6 +314,15 @@
   margin-bottom: 0;
 }
 
+/* Badges Row */
+.dict-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
 .dict-pos-badge {
   display: inline-block;
   font-size: 11px;
@@ -292,7 +333,117 @@
   border-radius: 20px;
   background: var(--pill-bg);
   color: var(--pill-color);
-  margin-bottom: 8px;
+}
+
+.dict-domain-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+
+/* Curated domain badge color palettes */
+.dict-domain-badge.dict-domain-computing {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.dict-domain-badge.dict-domain-science {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.dict-domain-badge.dict-domain-mathematics {
+  background: rgba(168, 85, 247, 0.12);
+  color: #7c3aed;
+  border-color: rgba(168, 85, 247, 0.25);
+}
+
+.dict-domain-badge.dict-domain-business {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.dict-domain-badge.dict-domain-history {
+  background: rgba(244, 63, 94, 0.12);
+  color: #e11d48;
+  border-color: rgba(244, 63, 94, 0.25);
+}
+
+.dict-domain-badge.dict-domain-general {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dict-domain-badge.dict-domain-computing {
+    background: rgba(99, 102, 241, 0.22);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.35);
+  }
+  .dict-domain-badge.dict-domain-science {
+    background: rgba(16, 185, 129, 0.22);
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+  .dict-domain-badge.dict-domain-mathematics {
+    background: rgba(168, 85, 247, 0.22);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.35);
+  }
+  .dict-domain-badge.dict-domain-business {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+  .dict-domain-badge.dict-domain-history {
+    background: rgba(244, 63, 94, 0.22);
+    color: #fda4af;
+    border-color: rgba(244, 63, 94, 0.35);
+  }
+  .dict-domain-badge.dict-domain-general {
+    background: rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.35);
+  }
+}
+
+.dict-card.theme-dark .dict-domain-badge.dict-domain-computing {
+  background: rgba(99, 102, 241, 0.22);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-science {
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-mathematics {
+  background: rgba(168, 85, 247, 0.22);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-business {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-history {
+  background: rgba(244, 63, 94, 0.22);
+  color: #fda4af;
+  border-color: rgba(244, 63, 94, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-general {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.35);
 }
 
 .dict-definitions-list {
@@ -394,3 +545,112 @@
   line-height: 1.4;
   margin: 0;
 }
+
+/* Encyclopedic Summary Block */
+.dict-encyclopedic-block {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent-color);
+}
+
+.dict-encyclopedic-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.45;
+  margin: 0 0 6px 0;
+}
+
+.dict-reference-link {
+  font-size: 11.5px;
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: opacity 0.15s ease;
+}
+
+.dict-reference-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+/* Stacked Disambiguation Section Divider */
+.dict-stacked-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 12px 0;
+}
+
+.dict-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.dict-divider-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Floating Dictionary Trigger Icon */
+.dict-floating-icon-host {
+  all: initial;
+  position: fixed;
+  z-index: 2147483646;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  pointer-events: auto;
+}
+
+.dict-floating-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  animation: dictFloatingPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dict-floating-btn:hover {
+  transform: scale(1.12);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5);
+}
+
+.dict-floating-btn:active {
+  transform: scale(0.95);
+}
+
+.dict-floating-btn svg {
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+}
+
+@keyframes dictFloatingPop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+

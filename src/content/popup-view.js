@@ -252,23 +252,42 @@ export class PopupView {
     this.host.style.left = `${coords.left}px`;
   }
 
-  _createHeader(word, phoneticText = '', audioUrl = null, showAudio = false) {
+  _createHeader(word, phoneticText = '', audioUrl = null, showAudio = false, extra = {}) {
     const header = document.createElement('div');
     header.className = 'dict-header';
 
     const titleGroup = document.createElement('div');
     titleGroup.className = 'dict-title-group';
 
+    const titleRow = document.createElement('div');
+    titleRow.className = 'dict-title-row';
+
     const wordEl = document.createElement('span');
     wordEl.className = 'dict-word';
     wordEl.textContent = word;
-    titleGroup.appendChild(wordEl);
+    titleRow.appendChild(wordEl);
+
+    if (extra && extra.isAcronym) {
+      const acronymBadge = document.createElement('span');
+      acronymBadge.className = 'dict-acronym-badge';
+      acronymBadge.textContent = 'Acronym';
+      titleRow.appendChild(acronymBadge);
+    }
 
     if (phoneticText) {
       const phoneticEl = document.createElement('span');
       phoneticEl.className = 'dict-phonetic';
       phoneticEl.textContent = phoneticText;
-      titleGroup.appendChild(phoneticEl);
+      titleRow.appendChild(phoneticEl);
+    }
+
+    titleGroup.appendChild(titleRow);
+
+    if (extra && extra.isAcronym && extra.acronymExpansion) {
+      const expansionEl = document.createElement('div');
+      expansionEl.className = 'dict-acronym-expansion';
+      expansionEl.textContent = extra.acronymExpansion;
+      titleGroup.appendChild(expansionEl);
     }
 
     const actions = document.createElement('div');
@@ -327,31 +346,84 @@ export class PopupView {
     this._renderCard(card);
   }
 
-  showResult(entry, coords, theme = 'auto') {
+  showResult(entry, coords, theme = 'auto', config = {}) {
     this._ensureMounted();
     this._updatePosition(coords);
 
     const card = document.createElement('div');
     card.className = `dict-card ${this._getThemeClass(theme)}`;
 
-    card.appendChild(this._createHeader(entry.word, entry.phonetic, entry.audioUrl, true));
+    const showDomainBadges = config?.domainBadgesEnabled !== false;
+
+    card.appendChild(this._createHeader(
+      entry.word,
+      entry.phonetic,
+      entry.audioUrl,
+      Boolean(entry.audioUrl || entry.word),
+      {
+        isAcronym: entry.isAcronym,
+        acronymExpansion: entry.acronymExpansion
+      }
+    ));
 
     const body = document.createElement('div');
     body.className = 'dict-body';
 
-    for (const group of entry.meanings) {
+    // 1. Encyclopedic summary if present (Wikipedia lead)
+    if (entry.encyclopedicSummary) {
+      const encycloBlock = document.createElement('div');
+      encycloBlock.className = 'dict-encyclopedic-block';
+
+      const summaryText = document.createElement('p');
+      summaryText.className = 'dict-encyclopedic-text';
+      summaryText.textContent = entry.encyclopedicSummary;
+      encycloBlock.appendChild(summaryText);
+
+      if (entry.referenceUrl) {
+        const refLink = document.createElement('a');
+        refLink.className = 'dict-reference-link';
+        refLink.href = entry.referenceUrl;
+        refLink.target = '_blank';
+        refLink.rel = 'noopener noreferrer';
+        refLink.textContent = 'Learn more on Wikipedia →';
+        encycloBlock.appendChild(refLink);
+      }
+
+      body.appendChild(encycloBlock);
+    }
+
+    // Helper to render a meaning group
+    const renderMeaningGroup = (group) => {
       const groupEl = document.createElement('div');
       groupEl.className = 'dict-meaning-group';
 
-      const badge = document.createElement('span');
-      badge.className = 'dict-pos-badge';
-      badge.textContent = group.partOfSpeech;
-      groupEl.appendChild(badge);
+      const badgesRow = document.createElement('div');
+      badgesRow.className = 'dict-badges-row';
+
+      if (group.partOfSpeech) {
+        const badge = document.createElement('span');
+        badge.className = 'dict-pos-badge';
+        badge.textContent = group.partOfSpeech;
+        badgesRow.appendChild(badge);
+      }
+
+      if (showDomainBadges && group.domain && group.domain !== 'General') {
+        const domainBadge = document.createElement('span');
+        const domainClass = group.domain.toLowerCase().replace(/[^a-z0-9]/g, '');
+        domainBadge.className = `dict-domain-badge dict-domain-${domainClass}`;
+        domainBadge.textContent = group.domain;
+        badgesRow.appendChild(domainBadge);
+      }
+
+      if (badgesRow.childNodes.length > 0) {
+        groupEl.appendChild(badgesRow);
+      }
 
       const list = document.createElement('ol');
       list.className = 'dict-definitions-list';
 
-      for (const d of group.definitions.slice(0, 3)) {
+      const defs = (group.definitions || []).slice(0, 3);
+      for (const d of defs) {
         const item = document.createElement('li');
         item.className = 'dict-def-item';
 
@@ -380,7 +452,39 @@ export class PopupView {
       }
 
       groupEl.appendChild(list);
-      body.appendChild(groupEl);
+      return groupEl;
+    };
+
+    // Primary / domain meanings
+    if (entry.meanings && entry.meanings.length > 0) {
+      for (const group of entry.meanings) {
+        body.appendChild(renderMeaningGroup(group));
+      }
+    }
+
+    // Stacked Disambiguation Layout: General English meanings section
+    if (entry.generalMeanings && entry.generalMeanings.length > 0) {
+      const divider = document.createElement('div');
+      divider.className = 'dict-stacked-divider';
+
+      const line1 = document.createElement('span');
+      line1.className = 'dict-divider-line';
+      divider.appendChild(line1);
+
+      const label = document.createElement('span');
+      label.className = 'dict-divider-label';
+      label.textContent = 'General English Meanings';
+      divider.appendChild(label);
+
+      const line2 = document.createElement('span');
+      line2.className = 'dict-divider-line';
+      divider.appendChild(line2);
+
+      body.appendChild(divider);
+
+      for (const group of entry.generalMeanings) {
+        body.appendChild(renderMeaningGroup(group));
+      }
     }
 
     card.appendChild(body);

@@ -41,7 +41,8 @@
   ],
   "host_permissions": [
     "https://api.dictionaryapi.dev/*",
-    "https://en.wiktionary.org/*"
+    "https://en.wiktionary.org/*",
+    "https://en.wikipedia.org/*"
   ],
   "browser_specific_settings": {
     "gecko": {

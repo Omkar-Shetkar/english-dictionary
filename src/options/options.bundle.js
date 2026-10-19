@@ -5,7 +5,10 @@
   var DEFAULT_CONFIG = Object.freeze({
     modifierKey: "none",
     enabled: true,
-    theme: "auto"
+    theme: "auto",
+    multiWordEnabled: true,
+    domainBadgesEnabled: true,
+    schemaVersion: 2
   });
   var STORAGE_KEY = "settings";
   function getStorageArea() {
@@ -21,7 +24,17 @@
     const modifierKey = VALID_MODIFIER_KEYS.includes(raw.modifierKey) ? raw.modifierKey : DEFAULT_CONFIG.modifierKey;
     const enabled = typeof raw.enabled === "boolean" ? raw.enabled : DEFAULT_CONFIG.enabled;
     const theme = VALID_THEMES.includes(raw.theme) ? raw.theme : DEFAULT_CONFIG.theme;
-    return { modifierKey, enabled, theme };
+    const multiWordEnabled = typeof raw.multiWordEnabled === "boolean" ? raw.multiWordEnabled : DEFAULT_CONFIG.multiWordEnabled;
+    const domainBadgesEnabled = typeof raw.domainBadgesEnabled === "boolean" ? raw.domainBadgesEnabled : DEFAULT_CONFIG.domainBadgesEnabled;
+    const schemaVersion = typeof raw.schemaVersion === "number" ? raw.schemaVersion : DEFAULT_CONFIG.schemaVersion;
+    return {
+      modifierKey,
+      enabled,
+      theme,
+      multiWordEnabled,
+      domainBadgesEnabled,
+      schemaVersion
+    };
   }
   async function getSettings() {
     const storage = getStorageArea();
@@ -67,27 +80,91 @@
   }
 
   // src/common/sanitize.js
-  var LEADING_BOUNDARY_REGEX = /^[\s\p{P}\p{S}]+/u;
-  var TRAILING_BOUNDARY_REGEX = /[\s\p{P}\p{S}]+$/u;
+  var LEADING_BOUNDARY_REGEX = /^[\s"'“‘(\[{<«]+/u;
+  var TRAILING_BOUNDARY_REGEX = /[\s"'”’)\]}>».,:;!?-]+$/u;
   var HAS_LETTER_REGEX = /\p{L}/u;
   var MAX_WORD_LENGTH = 45;
-  function sanitizeWord(rawText) {
+  var MAX_PHRASE_WORDS = 4;
+  var MAX_PHRASE_LENGTH = 120;
+  function sanitizeDomainTerm(rawText) {
     if (typeof rawText !== "string") {
-      return { isValid: false, word: "", raw: "" };
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw: "",
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount: 0
+      };
     }
     const raw = rawText.trim();
     if (!raw) {
-      return { isValid: false, word: "", raw };
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount: 0
+      };
     }
-    let cleaned = raw.replace(LEADING_BOUNDARY_REGEX, "").replace(TRAILING_BOUNDARY_REGEX, "");
-    cleaned = cleaned.toLowerCase();
-    const isValid = Boolean(
-      cleaned.length > 0 && cleaned.length <= MAX_WORD_LENGTH && HAS_LETTER_REGEX.test(cleaned) && !/\s/.test(cleaned)
-    );
+    const normalizedSpaces = raw.replace(/\s+/g, " ");
+    let cleaned = normalizedSpaces.replace(LEADING_BOUNDARY_REGEX, "").trim();
+    const dottedAbbrevMatch = cleaned.match(/^([A-Za-z]\.(?:[A-Za-z]\.)+)(?:[\s"'”’)\]}>».,:;!?-]*)$/);
+    if (dottedAbbrevMatch) {
+      cleaned = dottedAbbrevMatch[1];
+    } else {
+      cleaned = cleaned.replace(TRAILING_BOUNDARY_REGEX, "").trim();
+    }
+    if (!cleaned || cleaned.length > MAX_PHRASE_LENGTH || !HAS_LETTER_REGEX.test(cleaned)) {
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount: 0
+      };
+    }
+    const words = cleaned.split(" ").filter(Boolean);
+    const wordCount = words.length;
+    if (wordCount === 0 || wordCount > MAX_PHRASE_WORDS) {
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount
+      };
+    }
+    const hasInvalidToken = words.some((w) => !HAS_LETTER_REGEX.test(w) || w.length > MAX_WORD_LENGTH);
+    if (hasInvalidToken) {
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount
+      };
+    }
+    const isMultiWord = wordCount > 1;
+    const lettersOnly = cleaned.replace(/[^\p{L}]/gu, "");
+    const isUppercase = lettersOnly.length > 0 && lettersOnly === lettersOnly.toUpperCase();
     return {
-      isValid,
-      word: isValid ? cleaned : "",
-      raw
+      isValid: true,
+      term: cleaned,
+      cleanTerm: cleaned,
+      raw,
+      isUppercase,
+      isMultiWord,
+      wordCount
     };
   }
 
@@ -340,20 +417,35 @@
       this.host.style.top = `${coords.top}px`;
       this.host.style.left = `${coords.left}px`;
     }
-    _createHeader(word, phoneticText = "", audioUrl = null, showAudio = false) {
+    _createHeader(word, phoneticText = "", audioUrl = null, showAudio = false, extra = {}) {
       const header = document.createElement("div");
       header.className = "dict-header";
       const titleGroup = document.createElement("div");
       titleGroup.className = "dict-title-group";
+      const titleRow = document.createElement("div");
+      titleRow.className = "dict-title-row";
       const wordEl = document.createElement("span");
       wordEl.className = "dict-word";
       wordEl.textContent = word;
-      titleGroup.appendChild(wordEl);
+      titleRow.appendChild(wordEl);
+      if (extra && extra.isAcronym) {
+        const acronymBadge = document.createElement("span");
+        acronymBadge.className = "dict-acronym-badge";
+        acronymBadge.textContent = "Acronym";
+        titleRow.appendChild(acronymBadge);
+      }
       if (phoneticText) {
         const phoneticEl = document.createElement("span");
         phoneticEl.className = "dict-phonetic";
         phoneticEl.textContent = phoneticText;
-        titleGroup.appendChild(phoneticEl);
+        titleRow.appendChild(phoneticEl);
+      }
+      titleGroup.appendChild(titleRow);
+      if (extra && extra.isAcronym && extra.acronymExpansion) {
+        const expansionEl = document.createElement("div");
+        expansionEl.className = "dict-acronym-expansion";
+        expansionEl.textContent = extra.acronymExpansion;
+        titleGroup.appendChild(expansionEl);
       }
       const actions = document.createElement("div");
       actions.className = "dict-header-actions";
@@ -400,24 +492,67 @@
       card.appendChild(loadingView);
       this._renderCard(card);
     }
-    showResult(entry, coords, theme = "auto") {
+    showResult(entry, coords, theme = "auto", config = {}) {
       this._ensureMounted();
       this._updatePosition(coords);
       const card = document.createElement("div");
       card.className = `dict-card ${this._getThemeClass(theme)}`;
-      card.appendChild(this._createHeader(entry.word, entry.phonetic, entry.audioUrl, true));
+      const showDomainBadges = config?.domainBadgesEnabled !== false;
+      card.appendChild(this._createHeader(
+        entry.word,
+        entry.phonetic,
+        entry.audioUrl,
+        Boolean(entry.audioUrl || entry.word),
+        {
+          isAcronym: entry.isAcronym,
+          acronymExpansion: entry.acronymExpansion
+        }
+      ));
       const body = document.createElement("div");
       body.className = "dict-body";
-      for (const group of entry.meanings) {
+      if (entry.encyclopedicSummary) {
+        const encycloBlock = document.createElement("div");
+        encycloBlock.className = "dict-encyclopedic-block";
+        const summaryText = document.createElement("p");
+        summaryText.className = "dict-encyclopedic-text";
+        summaryText.textContent = entry.encyclopedicSummary;
+        encycloBlock.appendChild(summaryText);
+        if (entry.referenceUrl) {
+          const refLink = document.createElement("a");
+          refLink.className = "dict-reference-link";
+          refLink.href = entry.referenceUrl;
+          refLink.target = "_blank";
+          refLink.rel = "noopener noreferrer";
+          refLink.textContent = "Learn more on Wikipedia \u2192";
+          encycloBlock.appendChild(refLink);
+        }
+        body.appendChild(encycloBlock);
+      }
+      const renderMeaningGroup = (group) => {
         const groupEl = document.createElement("div");
         groupEl.className = "dict-meaning-group";
-        const badge = document.createElement("span");
-        badge.className = "dict-pos-badge";
-        badge.textContent = group.partOfSpeech;
-        groupEl.appendChild(badge);
+        const badgesRow = document.createElement("div");
+        badgesRow.className = "dict-badges-row";
+        if (group.partOfSpeech) {
+          const badge = document.createElement("span");
+          badge.className = "dict-pos-badge";
+          badge.textContent = group.partOfSpeech;
+          badgesRow.appendChild(badge);
+        }
+        if (showDomainBadges && group.domain && group.domain !== "General") {
+          const domainBadge = document.createElement("span");
+          const domainClass = group.domain.toLowerCase().replace(/[^a-z0-9]/g, "");
+          domainBadge.className = `dict-domain-badge dict-domain-${domainClass}`;
+          domainBadge.textContent = group.domain;
+          badgesRow.appendChild(domainBadge);
+        }
+        if (badgesRow.childNodes.length > 0) {
+          groupEl.appendChild(badgesRow);
+        }
         const list = document.createElement("ol");
         list.className = "dict-definitions-list";
-        for (const d of group.definitions.slice(0, 3)) {
+        const defs = (group.definitions || []).slice(0, 3);
+        for (const d of defs) {
           const item = document.createElement("li");
           item.className = "dict-def-item";
           const defText = document.createElement("div");
@@ -441,7 +576,30 @@
           list.appendChild(item);
         }
         groupEl.appendChild(list);
-        body.appendChild(groupEl);
+        return groupEl;
+      };
+      if (entry.meanings && entry.meanings.length > 0) {
+        for (const group of entry.meanings) {
+          body.appendChild(renderMeaningGroup(group));
+        }
+      }
+      if (entry.generalMeanings && entry.generalMeanings.length > 0) {
+        const divider = document.createElement("div");
+        divider.className = "dict-stacked-divider";
+        const line1 = document.createElement("span");
+        line1.className = "dict-divider-line";
+        divider.appendChild(line1);
+        const label = document.createElement("span");
+        label.className = "dict-divider-label";
+        label.textContent = "General English Meanings";
+        divider.appendChild(label);
+        const line2 = document.createElement("span");
+        line2.className = "dict-divider-line";
+        divider.appendChild(line2);
+        body.appendChild(divider);
+        for (const group of entry.generalMeanings) {
+          body.appendChild(renderMeaningGroup(group));
+        }
       }
       card.appendChild(body);
       this._renderCard(card);
@@ -618,409 +776,475 @@
     }
   };
 
+  // src/content/floating-icon.js
+  var SVG_NS2 = "http://www.w3.org/2000/svg";
+  function createBookSvg() {
+    const svg = document.createElementNS(SVG_NS2, "svg");
+    svg.setAttribute("width", "15");
+    svg.setAttribute("height", "15");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2.2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    const path1 = document.createElementNS(SVG_NS2, "path");
+    path1.setAttribute("d", "M4 19.5A2.5 2.5 0 0 1 6.5 17H20");
+    const path2 = document.createElementNS(SVG_NS2, "path");
+    path2.setAttribute("d", "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z");
+    svg.appendChild(path1);
+    svg.appendChild(path2);
+    return svg;
+  }
+  var FloatingIcon = class {
+    constructor() {
+      this.host = null;
+      this.shadowRoot = null;
+      this.cssText = "";
+      this.onClickHandler = null;
+      this._handleOutsideClick = this._handleOutsideClick.bind(this);
+      this._handleScroll = this._handleScroll.bind(this);
+    }
+    setStyles(css) {
+      this.cssText = css;
+    }
+    show(coords, onClick) {
+      this.dismiss();
+      if (!coords) return;
+      this.onClickHandler = onClick;
+      this.host = document.createElement("div");
+      this.host.id = "eng-dict-floating-host-root";
+      this.host.className = "dict-floating-icon-host";
+      this.host.style.top = `${coords.top}px`;
+      this.host.style.left = `${coords.left}px`;
+      this.shadowRoot = this.host.attachShadow({ mode: "open" });
+      const styleEl = document.createElement("style");
+      styleEl.textContent = this.cssText;
+      this.shadowRoot.appendChild(styleEl);
+      const btn = document.createElement("button");
+      btn.className = "dict-floating-btn";
+      btn.title = "Look up in English Dictionary";
+      btn.setAttribute("aria-label", "Look up selection");
+      btn.appendChild(createBookSvg());
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const cb = this.onClickHandler;
+        this.dismiss();
+        if (cb) cb();
+      });
+      this.shadowRoot.appendChild(btn);
+      document.documentElement.appendChild(this.host);
+      document.addEventListener("mousedown", this._handleOutsideClick, true);
+      window.addEventListener("scroll", this._handleScroll, { passive: true });
+    }
+    dismiss() {
+      if (typeof document !== "undefined") {
+        if (this.host && document.contains(this.host)) {
+          this.host.remove();
+        }
+        document.removeEventListener("mousedown", this._handleOutsideClick, true);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("scroll", this._handleScroll);
+      }
+      this.host = null;
+      this.shadowRoot = null;
+      this.onClickHandler = null;
+    }
+    _handleOutsideClick(event) {
+      if (this.host && !this.host.contains(event.target)) {
+        this.dismiss();
+      }
+    }
+    _handleScroll() {
+      this.dismiss();
+    }
+  };
+
   // src/content/popup-styles.js
-  var POPUP_STYLES = `/* ==========================================================================
-   English Dictionary Firefox Addon - Shadow DOM Popup Styles
-   Glassmorphic, Modern, Responsive & Dynamic Card
-   ========================================================================== */
+  var POPUP_STYLES = '/* ==========================================================================\n   English Dictionary Firefox Addon - Shadow DOM Popup Styles\n   Glassmorphic, Modern, Responsive & Dynamic Card\n   ========================================================================== */\n\n:host {\n  all: initial;\n  position: fixed;\n  z-index: 2147483647;\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;\n  font-size: 14px;\n  line-height: 1.5;\n  color: #1e293b;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\n*, *::before, *::after {\n  box-sizing: border-box;\n}\n\n/* Light Theme Variables (Default) */\n.dict-card {\n  --bg-primary: rgba(255, 255, 255, 0.94);\n  --bg-surface: #f8fafc;\n  --bg-hover: #f1f5f9;\n  --text-primary: #0f172a;\n  --text-secondary: #475569;\n  --text-muted: #64748b;\n  --accent-color: #4f46e5;\n  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  --accent-light: #e0e7ff;\n  --border-color: rgba(226, 232, 240, 0.9);\n  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);\n  --pill-bg: #eef2ff;\n  --pill-color: #4338ca;\n  --example-border: #6366f1;\n}\n\n/* Dark Theme Support */\n@media (prefers-color-scheme: dark) {\n  .dict-card {\n    --bg-primary: rgba(15, 23, 42, 0.94);\n    --bg-surface: #1e293b;\n    --bg-hover: #334155;\n    --text-primary: #f8fafc;\n    --text-secondary: #cbd5e1;\n    --text-muted: #94a3b8;\n    --accent-color: #818cf8;\n    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);\n    --accent-light: rgba(99, 102, 241, 0.2);\n    --border-color: rgba(51, 65, 85, 0.85);\n    --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -6px rgba(0, 0, 0, 0.35);\n    --pill-bg: rgba(99, 102, 241, 0.18);\n    --pill-color: #a5b4fc;\n    --example-border: #818cf8;\n  }\n}\n\n/* Explicit class theme overrides */\n.dict-card.theme-dark {\n  --bg-primary: rgba(15, 23, 42, 0.94);\n  --bg-surface: #1e293b;\n  --bg-hover: #334155;\n  --text-primary: #f8fafc;\n  --text-secondary: #cbd5e1;\n  --text-muted: #94a3b8;\n  --accent-color: #818cf8;\n  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);\n  --accent-light: rgba(99, 102, 241, 0.2);\n  --border-color: rgba(51, 65, 85, 0.85);\n  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45);\n  --pill-bg: rgba(99, 102, 241, 0.18);\n  --pill-color: #a5b4fc;\n  --example-border: #818cf8;\n}\n\n.dict-card.theme-light {\n  --bg-primary: rgba(255, 255, 255, 0.94);\n  --bg-surface: #f8fafc;\n  --bg-hover: #f1f5f9;\n  --text-primary: #0f172a;\n  --text-secondary: #475569;\n  --text-muted: #64748b;\n  --accent-color: #4f46e5;\n  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  --accent-light: #e0e7ff;\n  --border-color: rgba(226, 232, 240, 0.9);\n  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12);\n  --pill-bg: #eef2ff;\n  --pill-color: #4338ca;\n  --example-border: #6366f1;\n}\n\n/* Card Container */\n.dict-card {\n  width: 340px;\n  max-width: calc(100vw - 24px);\n  max-height: 420px;\n  background: var(--bg-primary);\n  backdrop-filter: blur(18px);\n  -webkit-backdrop-filter: blur(18px);\n  border: 1px solid var(--border-color);\n  border-radius: 16px;\n  box-shadow: var(--shadow-lg);\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n  animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;\n  transform-origin: top left;\n  user-select: text;\n  overscroll-behavior: contain;\n}\n\n@keyframes dictFadeInScale {\n  from {\n    opacity: 0;\n    transform: translateY(6px) scale(0.97);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0) scale(1);\n  }\n}\n\n/* Header */\n.dict-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px 14px 10px 16px;\n  border-bottom: 1px solid var(--border-color);\n  background: var(--bg-surface);\n}\n\n.dict-title-group {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  overflow: hidden;\n  flex: 1;\n}\n\n.dict-title-row {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  overflow: hidden;\n}\n\n.dict-word {\n  font-size: 18px;\n  font-weight: 700;\n  color: var(--text-primary);\n  letter-spacing: -0.01em;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n\n.dict-acronym-badge {\n  display: inline-block;\n  font-size: 10px;\n  font-weight: 700;\n  text-transform: uppercase;\n  letter-spacing: 0.06em;\n  padding: 1.5px 6px;\n  border-radius: 4px;\n  background: var(--accent-light);\n  color: var(--accent-color);\n  line-height: 1.2;\n  flex-shrink: 0;\n}\n\n.dict-acronym-expansion {\n  font-size: 12.5px;\n  font-weight: 600;\n  color: var(--accent-color);\n  letter-spacing: -0.01em;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n\n.dict-phonetic {\n  font-size: 12.5px;\n  color: var(--text-muted);\n  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;\n}\n\n.dict-header-actions {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex-shrink: 0;\n}\n\n/* Buttons */\n.dict-btn {\n  background: transparent;\n  border: none;\n  border-radius: 8px;\n  cursor: pointer;\n  padding: 0;\n  margin: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  color: var(--text-secondary);\n  transition: all 0.15s ease;\n  box-sizing: border-box;\n}\n\n.dict-btn svg {\n  display: block;\n  pointer-events: none;\n  flex-shrink: 0;\n}\n\n.dict-btn:hover {\n  background: var(--bg-hover);\n  color: var(--text-primary);\n}\n\n.dict-btn:active {\n  transform: scale(0.93);\n}\n\n/* Audio Speaker Button */\n.dict-audio-btn {\n  width: 28px;\n  height: 28px;\n  min-width: 28px;\n  min-height: 28px;\n  border-radius: 50%;\n  color: var(--accent-color);\n  background: var(--accent-light);\n  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;\n  padding: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.dict-audio-btn svg {\n  width: 15px;\n  height: 15px;\n}\n\n.dict-audio-btn:hover {\n  background: var(--accent-color);\n  color: #ffffff;\n  transform: scale(1.08);\n}\n\n.dict-audio-btn.playing {\n  animation: dictPulse 0.9s infinite alternate;\n}\n\n@keyframes dictPulse {\n  from { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }\n  to { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }\n}\n\n/* Close Button */\n.dict-close-btn {\n  width: 26px;\n  height: 26px;\n  min-width: 26px;\n  min-height: 26px;\n  border-radius: 50%;\n  color: var(--text-muted);\n  padding: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.dict-close-btn svg {\n  width: 14px;\n  height: 14px;\n}\n\n.dict-close-btn:hover {\n  background: rgba(239, 68, 68, 0.12);\n  color: #ef4444;\n}\n\n/* Body / Scrollable Content */\n.dict-body {\n  padding: 14px 16px;\n  overflow-y: auto;\n  flex: 1;\n  scrollbar-width: thin;\n  scrollbar-color: var(--border-color) transparent;\n  overscroll-behavior: contain;\n}\n\n.dict-body::-webkit-scrollbar {\n  width: 5px;\n}\n\n.dict-body::-webkit-scrollbar-thumb {\n  background-color: var(--border-color);\n  border-radius: 10px;\n}\n\n/* Meaning Group */\n.dict-meaning-group {\n  margin-bottom: 14px;\n}\n\n.dict-meaning-group:last-child {\n  margin-bottom: 0;\n}\n\n/* Badges Row */\n.dict-badges-row {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-bottom: 8px;\n  flex-wrap: wrap;\n}\n\n.dict-pos-badge {\n  display: inline-block;\n  font-size: 11px;\n  font-weight: 700;\n  text-transform: uppercase;\n  letter-spacing: 0.05em;\n  padding: 2px 8px;\n  border-radius: 20px;\n  background: var(--pill-bg);\n  color: var(--pill-color);\n}\n\n.dict-domain-badge {\n  display: inline-block;\n  font-size: 10.5px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  padding: 2px 7px;\n  border-radius: 12px;\n  border: 1px solid transparent;\n}\n\n/* Curated domain badge color palettes */\n.dict-domain-badge.dict-domain-computing {\n  background: rgba(99, 102, 241, 0.12);\n  color: #4f46e5;\n  border-color: rgba(99, 102, 241, 0.25);\n}\n\n.dict-domain-badge.dict-domain-science {\n  background: rgba(16, 185, 129, 0.12);\n  color: #059669;\n  border-color: rgba(16, 185, 129, 0.25);\n}\n\n.dict-domain-badge.dict-domain-mathematics {\n  background: rgba(168, 85, 247, 0.12);\n  color: #7c3aed;\n  border-color: rgba(168, 85, 247, 0.25);\n}\n\n.dict-domain-badge.dict-domain-business {\n  background: rgba(245, 158, 11, 0.12);\n  color: #d97706;\n  border-color: rgba(245, 158, 11, 0.25);\n}\n\n.dict-domain-badge.dict-domain-history {\n  background: rgba(244, 63, 94, 0.12);\n  color: #e11d48;\n  border-color: rgba(244, 63, 94, 0.25);\n}\n\n.dict-domain-badge.dict-domain-general {\n  background: rgba(100, 116, 139, 0.12);\n  color: #475569;\n  border-color: rgba(100, 116, 139, 0.25);\n}\n\n@media (prefers-color-scheme: dark) {\n  .dict-domain-badge.dict-domain-computing {\n    background: rgba(99, 102, 241, 0.22);\n    color: #a5b4fc;\n    border-color: rgba(99, 102, 241, 0.35);\n  }\n  .dict-domain-badge.dict-domain-science {\n    background: rgba(16, 185, 129, 0.22);\n    color: #6ee7b7;\n    border-color: rgba(16, 185, 129, 0.35);\n  }\n  .dict-domain-badge.dict-domain-mathematics {\n    background: rgba(168, 85, 247, 0.22);\n    color: #c084fc;\n    border-color: rgba(168, 85, 247, 0.35);\n  }\n  .dict-domain-badge.dict-domain-business {\n    background: rgba(245, 158, 11, 0.22);\n    color: #fcd34d;\n    border-color: rgba(245, 158, 11, 0.35);\n  }\n  .dict-domain-badge.dict-domain-history {\n    background: rgba(244, 63, 94, 0.22);\n    color: #fda4af;\n    border-color: rgba(244, 63, 94, 0.35);\n  }\n  .dict-domain-badge.dict-domain-general {\n    background: rgba(148, 163, 184, 0.2);\n    color: #cbd5e1;\n    border-color: rgba(148, 163, 184, 0.35);\n  }\n}\n\n.dict-card.theme-dark .dict-domain-badge.dict-domain-computing {\n  background: rgba(99, 102, 241, 0.22);\n  color: #a5b4fc;\n  border-color: rgba(99, 102, 241, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-science {\n  background: rgba(16, 185, 129, 0.22);\n  color: #6ee7b7;\n  border-color: rgba(16, 185, 129, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-mathematics {\n  background: rgba(168, 85, 247, 0.22);\n  color: #c084fc;\n  border-color: rgba(168, 85, 247, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-business {\n  background: rgba(245, 158, 11, 0.22);\n  color: #fcd34d;\n  border-color: rgba(245, 158, 11, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-history {\n  background: rgba(244, 63, 94, 0.22);\n  color: #fda4af;\n  border-color: rgba(244, 63, 94, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-general {\n  background: rgba(148, 163, 184, 0.2);\n  color: #cbd5e1;\n  border-color: rgba(148, 163, 184, 0.35);\n}\n\n.dict-definitions-list {\n  margin: 0;\n  padding-left: 18px;\n}\n\n.dict-def-item {\n  font-size: 13.5px;\n  color: var(--text-primary);\n  margin-bottom: 8px;\n  line-height: 1.45;\n}\n\n.dict-def-item:last-child {\n  margin-bottom: 0;\n}\n\n.dict-example {\n  margin-top: 4px;\n  padding-left: 8px;\n  border-left: 2px solid var(--example-border);\n  font-size: 12.5px;\n  color: var(--text-muted);\n  font-style: italic;\n  line-height: 1.4;\n}\n\n.dict-synonyms {\n  margin-top: 6px;\n  font-size: 11.5px;\n  color: var(--text-muted);\n}\n\n.dict-synonyms span {\n  color: var(--accent-color);\n  font-weight: 500;\n}\n\n/* Loading State */\n.dict-loading-view {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 28px 16px;\n  gap: 12px;\n  color: var(--text-muted);\n}\n\n.dict-spinner {\n  width: 24px;\n  height: 24px;\n  border: 2.5px solid var(--border-color);\n  border-top-color: var(--accent-color);\n  border-radius: 50%;\n  animation: dictSpin 0.7s linear infinite;\n}\n\n@keyframes dictSpin {\n  to { transform: rotate(360deg); }\n}\n\n/* Empty & Error State */\n.dict-error-view {\n  padding: 24px 18px;\n  text-align: center;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 8px;\n}\n\n.dict-error-icon {\n  width: 32px;\n  height: 32px;\n  color: #f59e0b;\n  margin-bottom: 2px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.dict-error-icon svg {\n  width: 32px;\n  height: 32px;\n  display: block;\n}\n\n.dict-error-title {\n  font-size: 14px;\n  font-weight: 600;\n  color: var(--text-primary);\n}\n\n.dict-error-desc {\n  font-size: 12.5px;\n  color: var(--text-muted);\n  line-height: 1.4;\n  margin: 0;\n}\n\n/* Encyclopedic Summary Block */\n.dict-encyclopedic-block {\n  margin-bottom: 14px;\n  padding: 10px 12px;\n  background: var(--bg-surface);\n  border-radius: 8px;\n  border-left: 3px solid var(--accent-color);\n}\n\n.dict-encyclopedic-text {\n  font-size: 13px;\n  color: var(--text-primary);\n  line-height: 1.45;\n  margin: 0 0 6px 0;\n}\n\n.dict-reference-link {\n  font-size: 11.5px;\n  color: var(--accent-color);\n  text-decoration: none;\n  font-weight: 500;\n  display: inline-flex;\n  align-items: center;\n  gap: 3px;\n  transition: opacity 0.15s ease;\n}\n\n.dict-reference-link:hover {\n  text-decoration: underline;\n  opacity: 0.85;\n}\n\n/* Stacked Disambiguation Section Divider */\n.dict-stacked-divider {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  margin: 16px 0 12px 0;\n}\n\n.dict-divider-line {\n  flex: 1;\n  height: 1px;\n  background: var(--border-color);\n}\n\n.dict-divider-label {\n  font-size: 11px;\n  font-weight: 600;\n  text-transform: uppercase;\n  letter-spacing: 0.05em;\n  color: var(--text-muted);\n  white-space: nowrap;\n}\n\n/* Floating Dictionary Trigger Icon */\n.dict-floating-icon-host {\n  all: initial;\n  position: fixed;\n  z-index: 2147483646;\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n  pointer-events: auto;\n}\n\n.dict-floating-btn {\n  width: 28px;\n  height: 28px;\n  border-radius: 50%;\n  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  color: #ffffff;\n  border: none;\n  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  cursor: pointer;\n  padding: 0;\n  margin: 0;\n  animation: dictFloatingPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n\n.dict-floating-btn:hover {\n  transform: scale(1.12);\n  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5);\n}\n\n.dict-floating-btn:active {\n  transform: scale(0.95);\n}\n\n.dict-floating-btn svg {\n  width: 15px;\n  height: 15px;\n  pointer-events: none;\n}\n\n@keyframes dictFloatingPop {\n  from {\n    opacity: 0;\n    transform: scale(0.7);\n  }\n  to {\n    opacity: 1;\n    transform: scale(1);\n  }\n}\n\n';
 
-:host {
-  all: initial;
-  position: fixed;
-  z-index: 2147483647;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #1e293b;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-/* Light Theme Variables (Default) */
-.dict-card {
-  --bg-primary: rgba(255, 255, 255, 0.94);
-  --bg-surface: #f8fafc;
-  --bg-hover: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --accent-color: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  --accent-light: #e0e7ff;
-  --border-color: rgba(226, 232, 240, 0.9);
-  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);
-  --pill-bg: #eef2ff;
-  --pill-color: #4338ca;
-  --example-border: #6366f1;
-}
-
-/* Dark Theme Support */
-@media (prefers-color-scheme: dark) {
-  .dict-card {
-    --bg-primary: rgba(15, 23, 42, 0.94);
-    --bg-surface: #1e293b;
-    --bg-hover: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --accent-color: #818cf8;
-    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    --accent-light: rgba(99, 102, 241, 0.2);
-    --border-color: rgba(51, 65, 85, 0.85);
-    --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -6px rgba(0, 0, 0, 0.35);
-    --pill-bg: rgba(99, 102, 241, 0.18);
-    --pill-color: #a5b4fc;
-    --example-border: #818cf8;
+  // src/common/domain-detector.js
+  var DOMAINS = Object.freeze({
+    COMPUTING: "Computing",
+    SCIENCE: "Science",
+    MATHEMATICS: "Mathematics",
+    BUSINESS: "Business",
+    HISTORY: "History",
+    GENERAL: "General"
+  });
+  var COMPUTING_KEYWORDS = [
+    "computing",
+    "computer",
+    "software",
+    "hardware",
+    "programming",
+    "internet",
+    "network",
+    "cybersecurity",
+    "algorithm",
+    "artificial intelligence",
+    "machine learning",
+    "database",
+    "cryptography",
+    "web",
+    "operating system",
+    "compiler",
+    "code",
+    "data structure",
+    "cpu",
+    "cloud",
+    "devops",
+    "server",
+    "protocol",
+    "telecommunication",
+    "telecommunications",
+    "polymorphism",
+    "hypervisor",
+    "microservices",
+    "object-oriented"
+  ];
+  var SCIENCE_KEYWORDS = [
+    "science",
+    "scientific",
+    "biology",
+    "biological",
+    "chemistry",
+    "chemical",
+    "physics",
+    "physical",
+    "medicine",
+    "medical",
+    "astronomy",
+    "genetics",
+    "genetic",
+    "geology",
+    "neuroscience",
+    "physiology",
+    "physiological",
+    "homeostasis",
+    "photosynthesis",
+    "cellular",
+    "ecology",
+    "botany",
+    "zoology",
+    "biochemistry",
+    "pathology",
+    "pharmacology",
+    "anatomy",
+    "microbiology",
+    "organism",
+    "cell",
+    "quantum",
+    "crispr",
+    "mitochondria"
+  ];
+  var MATHEMATICS_KEYWORDS = [
+    "mathematics",
+    "mathematical",
+    "math",
+    "algebra",
+    "algebraic",
+    "geometry",
+    "geometric",
+    "calculus",
+    "statistics",
+    "statistical",
+    "topology",
+    "topological",
+    "trigonometry",
+    "arithmetic",
+    "probability",
+    "graph theory",
+    "combinatorics",
+    "discrete math",
+    "number theory",
+    "matrix",
+    "vector",
+    "differential",
+    "integral",
+    "linear algebra",
+    "eigenvalue",
+    "eigenvector",
+    "asymptote"
+  ];
+  var BUSINESS_KEYWORDS = [
+    "business",
+    "finance",
+    "financial",
+    "economics",
+    "economic",
+    "accounting",
+    "commerce",
+    "commercial",
+    "banking",
+    "marketing",
+    "corporate",
+    "management",
+    "investment",
+    "insurance",
+    "trade",
+    "fiscal",
+    "monetary",
+    "revenue",
+    "equity",
+    "asset",
+    "liability",
+    "macroeconomics",
+    "microeconomics",
+    "audit",
+    "taxation",
+    "amortization",
+    "liquidity",
+    "ebitda",
+    "compound interest"
+  ];
+  var HISTORY_KEYWORDS = [
+    "history",
+    "historical",
+    "ancient",
+    "medieval",
+    "renaissance",
+    "civilization",
+    "empire",
+    "warfare",
+    "military",
+    "archaeology",
+    "revolution",
+    "monarchy",
+    "feudalism",
+    "reformation",
+    "enlightenment",
+    "dynasty",
+    "era",
+    "antiquity",
+    "middle ages"
+  ];
+  function extractContextTags(text) {
+    if (!text || typeof text !== "string") return [];
+    const tags = [];
+    const matches = text.match(/\(([^)]+)\)|\[([^\]]+)\]/g);
+    if (matches) {
+      for (const m of matches) {
+        const inner = m.replace(/[()[\]]/g, "").trim().toLowerCase();
+        const parts = inner.split(/[,;/]+/).map((p) => p.trim()).filter(Boolean);
+        tags.push(...parts);
+      }
+    }
+    return tags;
   }
-}
-
-/* Explicit class theme overrides */
-.dict-card.theme-dark {
-  --bg-primary: rgba(15, 23, 42, 0.94);
-  --bg-surface: #1e293b;
-  --bg-hover: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --accent-color: #818cf8;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --accent-light: rgba(99, 102, 241, 0.2);
-  --border-color: rgba(51, 65, 85, 0.85);
-  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45);
-  --pill-bg: rgba(99, 102, 241, 0.18);
-  --pill-color: #a5b4fc;
-  --example-border: #818cf8;
-}
-
-.dict-card.theme-light {
-  --bg-primary: rgba(255, 255, 255, 0.94);
-  --bg-surface: #f8fafc;
-  --bg-hover: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --accent-color: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  --accent-light: #e0e7ff;
-  --border-color: rgba(226, 232, 240, 0.9);
-  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12);
-  --pill-bg: #eef2ff;
-  --pill-color: #4338ca;
-  --example-border: #6366f1;
-}
-
-/* Card Container */
-.dict-card {
-  width: 340px;
-  max-width: calc(100vw - 24px);
-  max-height: 420px;
-  background: var(--bg-primary);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  transform-origin: top left;
-  user-select: text;
-  overscroll-behavior: contain;
-}
-
-@keyframes dictFadeInScale {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.97);
+  function classifyDomain(text = "", extraTags = []) {
+    const combinedText = [
+      ...Array.isArray(extraTags) ? extraTags : [],
+      extractContextTags(text).join(" "),
+      text
+    ].join(" ").toLowerCase();
+    const countMatches = (keywords) => {
+      let score = 0;
+      for (const kw of keywords) {
+        if (kw.includes(" ")) {
+          if (combinedText.includes(kw)) score += 2;
+        } else {
+          const regex = new RegExp(`\\b${kw}\\b`, "gi");
+          const matches = combinedText.match(regex);
+          if (matches) score += matches.length;
+        }
+      }
+      return score;
+    };
+    const domainScores = [
+      { domain: DOMAINS.COMPUTING, score: countMatches(COMPUTING_KEYWORDS) },
+      { domain: DOMAINS.MATHEMATICS, score: countMatches(MATHEMATICS_KEYWORDS) },
+      { domain: DOMAINS.SCIENCE, score: countMatches(SCIENCE_KEYWORDS) },
+      { domain: DOMAINS.HISTORY, score: countMatches(HISTORY_KEYWORDS) },
+      { domain: DOMAINS.BUSINESS, score: countMatches(BUSINESS_KEYWORDS) }
+    ];
+    let bestDomain = DOMAINS.GENERAL;
+    let maxScore = 0;
+    for (const item of domainScores) {
+      if (item.score > maxScore) {
+        maxScore = item.score;
+        bestDomain = item.domain;
+      }
+    }
+    return bestDomain;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+  function extractAcronymExpansion(term, rawDefinition) {
+    if (!rawDefinition || typeof rawDefinition !== "string") return null;
+    const text = rawDefinition.replace(/^(\([^)]+\)|\[[^\]]+\])\s*/, "").trim();
+    const explicitPattern = /\b(?:initialism|acronym|abbreviation)\s+of\s+([^.;\n]+)/i;
+    const match1 = text.match(explicitPattern);
+    if (match1 && match1[1]) {
+      const cleaned = match1[1].replace(/<[^>]+>/g, "").trim();
+      if (cleaned.length > 2) {
+        return capitalizeWords(cleaned);
+      }
+    }
+    const letters = (term || "").replace(/[^A-Za-z]/g, "");
+    if (letters.length >= 2 && letters.length <= 6) {
+      const words = text.split(/[ ,;:]+/).filter(Boolean);
+      if (words.length >= letters.length) {
+        const candidateInitials = words.slice(0, letters.length).map((w) => w[0]?.toUpperCase()).join("");
+        if (candidateInitials === letters.toUpperCase()) {
+          const expansionCandidate = words.slice(0, letters.length).join(" ").replace(/[.;,]+$/, "");
+          return capitalizeWords(expansionCandidate);
+        }
+      }
+      const parenMatches = rawDefinition.matchAll(/\(([^)]+)\)/g);
+      for (const pMatch of parenMatches) {
+        const insideParen = pMatch[1].trim();
+        const parenWords = insideParen.split(/[ ,;:]+/).filter(Boolean);
+        if (parenWords.length >= letters.length) {
+          const candidateInitials = parenWords.slice(0, letters.length).map((w) => w[0]?.toUpperCase()).join("");
+          if (candidateInitials === letters.toUpperCase()) {
+            const expansionCandidate = parenWords.slice(0, letters.length).join(" ").replace(/[.;,]+$/, "");
+            return capitalizeWords(expansionCandidate);
+          }
+        }
+      }
+    }
+    return null;
   }
-}
+  function capitalizeWords(str) {
+    if (!str) return "";
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  }
 
-/* Header */
-.dict-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px 10px 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-surface);
-}
+  // src/background/normalizers/wiktionary.js
+  function cleanHtml(html) {
+    if (!html || typeof html !== "string") return "";
+    return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+  }
+  function normalizeWiktionaryPayload(data, queriedTerm) {
+    if (!data || !data.en || !Array.isArray(data.en)) {
+      return null;
+    }
+    const word = queriedTerm || "unknown";
+    let isAcronym = false;
+    let acronymExpansion = null;
+    const domainMeaningsMap = /* @__PURE__ */ new Map();
+    const generalMeaningsMap = /* @__PURE__ */ new Map();
+    for (const item of data.en) {
+      const originalPos = item.partOfSpeech || "general";
+      const rawPos = originalPos.toLowerCase();
+      const isAbbrevPos = rawPos.includes("abbreviation") || rawPos.includes("initialism") || rawPos.includes("acronym");
+      if (Array.isArray(item.definitions)) {
+        for (const d of item.definitions) {
+          const text = cleanHtml(d.definition);
+          if (!text || text.length < 2) continue;
+          const contextTags = extractContextTags(text);
+          const domain = classifyDomain(text, [rawPos, ...contextTags]);
+          const expansion = extractAcronymExpansion(word, text);
+          if (expansion && !acronymExpansion) {
+            acronymExpansion = expansion;
+            isAcronym = true;
+          } else if (isAbbrevPos || /\b(initialism|acronym|abbreviation)\b/i.test(text)) {
+            isAcronym = true;
+          }
+          const example = Array.isArray(d.examples) && d.examples.length > 0 ? cleanHtml(d.examples[0]) : null;
+          const defObj = {
+            definition: text,
+            example,
+            synonyms: [],
+            antonyms: []
+          };
+          const targetMap = domain !== DOMAINS.GENERAL || isAbbrevPos ? domainMeaningsMap : generalMeaningsMap;
+          const key = `${domain}::${rawPos}`;
+          if (!targetMap.has(key)) {
+            targetMap.set(key, {
+              domain,
+              partOfSpeech: originalPos,
+              definitions: []
+            });
+          }
+          targetMap.get(key).definitions.push(defObj);
+        }
+      }
+    }
+    const meanings = Array.from(domainMeaningsMap.values());
+    const generalMeanings = Array.from(generalMeaningsMap.values());
+    if (meanings.length === 0 && generalMeanings.length === 0) {
+      return null;
+    }
+    const primaryMeanings = meanings.length > 0 ? meanings : generalMeanings;
+    const secondaryMeanings = meanings.length > 0 ? generalMeanings : [];
+    return {
+      word,
+      isAcronym,
+      acronymExpansion,
+      meanings: primaryMeanings,
+      generalMeanings: secondaryMeanings,
+      phonetic: null,
+      audioUrl: null,
+      encyclopedicSummary: null,
+      referenceUrl: `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`,
+      source: "wiktionary"
+    };
+  }
 
-.dict-title-group {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.dict-word {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dict-phonetic {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
-}
-
-.dict-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* Buttons */
-.dict-btn {
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition: all 0.15s ease;
-  box-sizing: border-box;
-}
-
-.dict-btn svg {
-  display: block;
-  pointer-events: none;
-  flex-shrink: 0;
-}
-
-.dict-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.dict-btn:active {
-  transform: scale(0.93);
-}
-
-/* Audio Speaker Button */
-.dict-audio-btn {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  border-radius: 50%;
-  color: var(--accent-color);
-  background: var(--accent-light);
-  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dict-audio-btn svg {
-  width: 15px;
-  height: 15px;
-}
-
-.dict-audio-btn:hover {
-  background: var(--accent-color);
-  color: #ffffff;
-  transform: scale(1.08);
-}
-
-.dict-audio-btn.playing {
-  animation: dictPulse 0.9s infinite alternate;
-}
-
-@keyframes dictPulse {
-  from { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  to { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
-}
-
-/* Close Button */
-.dict-close-btn {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  min-height: 26px;
-  border-radius: 50%;
-  color: var(--text-muted);
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dict-close-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.dict-close-btn:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-}
-
-/* Body / Scrollable Content */
-.dict-body {
-  padding: 14px 16px;
-  overflow-y: auto;
-  flex: 1;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
-  overscroll-behavior: contain;
-}
-
-.dict-body::-webkit-scrollbar {
-  width: 5px;
-}
-
-.dict-body::-webkit-scrollbar-thumb {
-  background-color: var(--border-color);
-  border-radius: 10px;
-}
-
-/* Meaning Group */
-.dict-meaning-group {
-  margin-bottom: 14px;
-}
-
-.dict-meaning-group:last-child {
-  margin-bottom: 0;
-}
-
-.dict-pos-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 8px;
-  border-radius: 20px;
-  background: var(--pill-bg);
-  color: var(--pill-color);
-  margin-bottom: 8px;
-}
-
-.dict-definitions-list {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.dict-def-item {
-  font-size: 13.5px;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  line-height: 1.45;
-}
-
-.dict-def-item:last-child {
-  margin-bottom: 0;
-}
-
-.dict-example {
-  margin-top: 4px;
-  padding-left: 8px;
-  border-left: 2px solid var(--example-border);
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-style: italic;
-  line-height: 1.4;
-}
-
-.dict-synonyms {
-  margin-top: 6px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.dict-synonyms span {
-  color: var(--accent-color);
-  font-weight: 500;
-}
-
-/* Loading State */
-.dict-loading-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 16px;
-  gap: 12px;
-  color: var(--text-muted);
-}
-
-.dict-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2.5px solid var(--border-color);
-  border-top-color: var(--accent-color);
-  border-radius: 50%;
-  animation: dictSpin 0.7s linear infinite;
-}
-
-@keyframes dictSpin {
-  to { transform: rotate(360deg); }
-}
-
-/* Empty & Error State */
-.dict-error-view {
-  padding: 24px 18px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.dict-error-icon {
-  width: 32px;
-  height: 32px;
-  color: #f59e0b;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dict-error-icon svg {
-  width: 32px;
-  height: 32px;
-  display: block;
-}
-
-.dict-error-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.dict-error-desc {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  line-height: 1.4;
-  margin: 0;
-}
-`;
+  // src/background/normalizers/wikipedia.js
+  function normalizeWikipediaSummary(data, queriedTerm) {
+    if (!data || typeof data !== "object") {
+      return null;
+    }
+    if (data.type === "disambiguation" || !data.extract || data.extract.trim().length < 10) {
+      return null;
+    }
+    const word = data.title || queriedTerm || "unknown";
+    const extract = data.extract.trim();
+    const description = data.description ? data.description.trim() : "";
+    const domain = classifyDomain(extract, [description]);
+    let acronymExpansion = null;
+    let isAcronym = false;
+    if (queriedTerm && queriedTerm === queriedTerm.toUpperCase() && queriedTerm.length >= 2 && queriedTerm.length <= 6) {
+      isAcronym = true;
+      if (data.title && !data.title.includes("(")) {
+        acronymExpansion = data.title;
+      }
+    }
+    if (!acronymExpansion) {
+      acronymExpansion = extractAcronymExpansion(queriedTerm, extract);
+      if (acronymExpansion) isAcronym = true;
+    }
+    const referenceUrl = data.content_urls && data.content_urls.desktop && data.content_urls.desktop.page ? data.content_urls.desktop.page : `https://en.wikipedia.org/wiki/${encodeURIComponent(word.replace(/\s+/g, "_"))}`;
+    const meanings = [
+      {
+        domain,
+        partOfSpeech: description ? description.toLowerCase() : "concept",
+        definitions: [
+          {
+            definition: extract,
+            example: null,
+            synonyms: [],
+            antonyms: []
+          }
+        ]
+      }
+    ];
+    return {
+      word,
+      isAcronym,
+      acronymExpansion,
+      meanings,
+      generalMeanings: [],
+      phonetic: null,
+      audioUrl: null,
+      encyclopedicSummary: extract,
+      referenceUrl,
+      source: "wikipedia"
+    };
+  }
 
   // src/background/dictionary-service.js
   var DICTIONARY_API_BASE = "https://api.dictionaryapi.dev/api/v2/entries/en";
   var WIKTIONARY_API_BASE = "https://en.wiktionary.org/api/rest_v1/page/definition";
-  var FETCH_TIMEOUT_MS = 4e3;
+  var WIKIPEDIA_SUMMARY_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary";
+  var FETCH_TIMEOUT_MS = 2500;
   var lookupCache = /* @__PURE__ */ new Map();
   var MAX_CACHE_SIZE = 100;
   function normalizeDictionaryResponse(data, fallbackWord = "") {
@@ -1077,6 +1301,7 @@
               existing.definitions.push(...definitions);
             } else {
               meanings.push({
+                domain: "General",
                 partOfSpeech,
                 definitions
               });
@@ -1087,91 +1312,143 @@
     }
     return {
       word,
+      isAcronym: false,
+      acronymExpansion: null,
       phonetic,
       audioUrl,
-      meanings
+      meanings,
+      generalMeanings: [],
+      encyclopedicSummary: null,
+      referenceUrl: null,
+      source: "freedictionary"
     };
   }
-  function cleanHtml(html) {
-    if (!html) return "";
-    return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
-  }
-  function normalizeWiktionaryResponse(data, word) {
-    if (!data || !data.en || !Array.isArray(data.en)) {
-      return null;
-    }
-    const meanings = [];
-    for (const item of data.en) {
-      const partOfSpeech = item.partOfSpeech || "general";
-      const definitions = [];
-      if (Array.isArray(item.definitions)) {
-        for (const d of item.definitions) {
-          const text = cleanHtml(d.definition);
-          if (text && text.length > 2) {
-            const ex = Array.isArray(d.examples) && d.examples.length > 0 ? cleanHtml(d.examples[0]) : null;
-            definitions.push({
-              definition: text,
-              example: ex,
-              synonyms: [],
-              antonyms: []
-            });
-          }
-        }
-      }
-      if (definitions.length > 0) {
-        meanings.push({
-          partOfSpeech,
-          definitions
-        });
-      }
-    }
-    if (meanings.length === 0) {
-      return null;
-    }
-    return {
-      word,
-      phonetic: null,
-      audioUrl: null,
-      meanings
-    };
-  }
-  async function lookupWord(word, fetchFn = globalThis.fetch) {
-    if (!word || typeof word !== "string") {
+  async function lookupDomainTerm(request, fetchFn = globalThis.fetch) {
+    if (!request || !request.term || typeof request.term !== "string") {
       return {
         status: "error",
         entry: null,
-        errorMessage: "Invalid word requested."
+        errorMessage: "Invalid word or term requested."
       };
     }
-    const cleanWord = word.trim().toLowerCase();
-    if (lookupCache.has(cleanWord)) {
-      return lookupCache.get(cleanWord);
+    const term = request.term.trim();
+    const cacheKey = term;
+    if (lookupCache.has(cacheKey)) {
+      return lookupCache.get(cacheKey);
     }
-    const primaryResult = await fetchFromFreeDictionary(cleanWord, fetchFn);
-    if (primaryResult.status === "success") {
-      cacheResult(cleanWord, primaryResult);
-      return primaryResult;
+    const isUppercase = request.isUppercase ?? (term === term.toUpperCase() && /[A-Z]/.test(term));
+    const wordCount = request.wordCount ?? term.split(/\s+/).length;
+    let result = null;
+    if (isUppercase && wordCount === 1) {
+      result = await handleAcronymLookup(term, fetchFn);
+    } else if (wordCount > 1) {
+      result = await handleMultiWordLookup(term, fetchFn);
+    } else {
+      result = await handleStandardWordLookup(term, fetchFn);
     }
-    console.info(`[Dictionary Addon] Primary lookup for "${cleanWord}" unsuccessful (${primaryResult.status}); checking Wiktionary fallback...`);
-    const fallbackResult = await fetchFromWiktionary(cleanWord, fetchFn);
-    if (fallbackResult.status === "success") {
-      cacheResult(cleanWord, fallbackResult);
-      return fallbackResult;
+    if (result.status === "success" || result.status === "not_found") {
+      cacheResult(cacheKey, result);
     }
-    const finalResult = {
+    return result;
+  }
+  async function handleAcronymLookup(term, fetchFn) {
+    const [wiktionaryRes, wikiSummaryRes, freeDictRes] = await Promise.allSettled([
+      fetchFromWiktionary(term, fetchFn),
+      fetchFromWikipediaSummary(term, fetchFn),
+      fetchFromFreeDictionary(term.toLowerCase(), fetchFn)
+    ]);
+    const wiktionary = wiktionaryRes.status === "fulfilled" ? wiktionaryRes.value : null;
+    const wikiSummary = wikiSummaryRes.status === "fulfilled" ? wikiSummaryRes.value : null;
+    const freeDict = freeDictRes.status === "fulfilled" ? freeDictRes.value : null;
+    if (wiktionary && wiktionary.status === "success" && wiktionary.entry) {
+      const entry = { ...wiktionary.entry };
+      if (freeDict && freeDict.status === "success" && freeDict.entry) {
+        if (!entry.audioUrl && freeDict.entry.audioUrl) {
+          entry.audioUrl = freeDict.entry.audioUrl;
+        }
+        if (!entry.phonetic && freeDict.entry.phonetic) {
+          entry.phonetic = freeDict.entry.phonetic;
+        }
+        if ((!entry.generalMeanings || entry.generalMeanings.length === 0) && freeDict.entry.meanings.length > 0) {
+          entry.generalMeanings = freeDict.entry.meanings;
+        }
+      }
+      if (wikiSummary && wikiSummary.status === "success" && wikiSummary.entry) {
+        if (!entry.acronymExpansion && wikiSummary.entry.acronymExpansion) {
+          entry.acronymExpansion = wikiSummary.entry.acronymExpansion;
+          entry.isAcronym = true;
+        }
+        entry.encyclopedicSummary = wikiSummary.entry.encyclopedicSummary;
+      }
+      return { status: "success", entry, errorMessage: null };
+    }
+    if (wikiSummary && wikiSummary.status === "success" && wikiSummary.entry) {
+      const entry = { ...wikiSummary.entry };
+      if (freeDict && freeDict.status === "success" && freeDict.entry) {
+        entry.audioUrl = freeDict.entry.audioUrl;
+        entry.phonetic = freeDict.entry.phonetic;
+        entry.generalMeanings = freeDict.entry.meanings;
+      }
+      return { status: "success", entry, errorMessage: null };
+    }
+    if (freeDict && freeDict.status === "success" && freeDict.entry) {
+      return freeDict;
+    }
+    return {
       status: "not_found",
       entry: null,
-      errorMessage: `No definitions found for "${cleanWord}". Check spelling.`
+      errorMessage: `No definitions found for "${term}". Check spelling.`
     };
-    cacheResult(cleanWord, finalResult);
-    return finalResult;
   }
-  function cacheResult(word, result) {
+  async function handleMultiWordLookup(term, fetchFn) {
+    const [wikiSummaryRes, wiktionaryRes] = await Promise.allSettled([
+      fetchFromWikipediaSummary(term, fetchFn),
+      fetchFromWiktionary(term, fetchFn)
+    ]);
+    const wikiSummary = wikiSummaryRes.status === "fulfilled" ? wikiSummaryRes.value : null;
+    const wiktionary = wiktionaryRes.status === "fulfilled" ? wiktionaryRes.value : null;
+    if (wikiSummary && wikiSummary.status === "success" && wikiSummary.entry) {
+      const entry = { ...wikiSummary.entry };
+      if (wiktionary && wiktionary.status === "success" && wiktionary.entry) {
+        entry.meanings.push(...wiktionary.entry.meanings);
+      }
+      return { status: "success", entry, errorMessage: null };
+    }
+    if (wiktionary && wiktionary.status === "success" && wiktionary.entry) {
+      return wiktionary;
+    }
+    return {
+      status: "not_found",
+      entry: null,
+      errorMessage: `No definitions found for "${term}". Check spelling.`
+    };
+  }
+  async function handleStandardWordLookup(term, fetchFn) {
+    const cleanWord = term.toLowerCase();
+    const primaryResult = await fetchFromFreeDictionary(cleanWord, fetchFn);
+    if (primaryResult.status === "success" && primaryResult.entry) {
+      return primaryResult;
+    }
+    const wiktionaryResult = await fetchFromWiktionary(term, fetchFn);
+    if (wiktionaryResult.status === "success" && wiktionaryResult.entry) {
+      return wiktionaryResult;
+    }
+    const wikiResult = await fetchFromWikipediaSummary(term, fetchFn);
+    if (wikiResult.status === "success" && wikiResult.entry) {
+      return wikiResult;
+    }
+    return {
+      status: "not_found",
+      entry: null,
+      errorMessage: `No definitions found for "${term}". Check spelling.`
+    };
+  }
+  function cacheResult(key, result) {
     if (lookupCache.size >= MAX_CACHE_SIZE) {
       const oldestKey = lookupCache.keys().next().value;
       lookupCache.delete(oldestKey);
     }
-    lookupCache.set(word, result);
+    lookupCache.set(key, result);
   }
   async function fetchFromFreeDictionary(cleanWord, fetchFn) {
     const url = `${DICTIONARY_API_BASE}/${encodeURIComponent(cleanWord)}`;
@@ -1192,16 +1469,16 @@
         }
       }
       if (response.status === 404) {
-        return { status: "not_found", entry: null };
+        return { status: "not_found", entry: null, errorMessage: "Word not found" };
       }
-      return { status: "error", entry: null };
+      return { status: "error", entry: null, errorMessage: "Service error" };
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
-      return { status: "network_error", entry: null };
+      return { status: "network_error", entry: null, errorMessage: "Network error" };
     }
   }
-  async function fetchFromWiktionary(cleanWord, fetchFn) {
-    const url = `${WIKTIONARY_API_BASE}/${encodeURIComponent(cleanWord)}`;
+  async function fetchFromWiktionary(term, fetchFn) {
+    const url = `${WIKTIONARY_API_BASE}/${encodeURIComponent(term)}`;
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS) : null;
     try {
@@ -1213,27 +1490,55 @@
       if (timeoutId) clearTimeout(timeoutId);
       if (response.status === 200) {
         const data = await response.json();
-        const entry = normalizeWiktionaryResponse(data, cleanWord);
+        const entry = normalizeWiktionaryPayload(data, term);
+        if (entry && (entry.meanings.length > 0 || entry.generalMeanings.length > 0)) {
+          return { status: "success", entry, errorMessage: null };
+        }
+      }
+      return { status: "not_found", entry: null, errorMessage: "Term not found in Wiktionary" };
+    } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
+      return { status: "network_error", entry: null, errorMessage: "Network error" };
+    }
+  }
+  async function fetchFromWikipediaSummary(title, fetchFn) {
+    const url = `${WIKIPEDIA_SUMMARY_BASE}/${encodeURIComponent(title.replace(/\s+/g, "_"))}`;
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS) : null;
+    try {
+      const response = await fetchFn(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller ? controller.signal : void 0
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+      if (response.status === 200) {
+        const data = await response.json();
+        const entry = normalizeWikipediaSummary(data, title);
         if (entry && entry.meanings.length > 0) {
           return { status: "success", entry, errorMessage: null };
         }
       }
-      return { status: "not_found", entry: null };
+      return { status: "not_found", entry: null, errorMessage: "Topic not found in Wikipedia" };
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
-      return { status: "network_error", entry: null };
+      return { status: "network_error", entry: null, errorMessage: "Network error" };
     }
   }
 
   // src/options/options.js
   var popupView = new PopupView();
   popupView.setStyles(POPUP_STYLES);
+  var floatingIcon = new FloatingIcon();
+  floatingIcon.setStyles(POPUP_STYLES);
   var saveTimeout = null;
   var hintTimeout = null;
   var activeConfig = {
     modifierKey: "none",
     enabled: true,
-    theme: "auto"
+    theme: "auto",
+    multiWordEnabled: true,
+    domainBadgesEnabled: true
   };
   function flashSavedBadge() {
     const badge = document.getElementById("saveStatus");
@@ -1278,10 +1583,39 @@
         console.warn("[Dictionary Addon] chrome.runtime.sendMessage error:", err);
       }
     }
-    if (payload.action === "LOOKUP_WORD" && payload.word) {
-      return lookupWord(payload.word);
+    if (payload.action === "LOOKUP_DOMAIN_TERM" && payload.payload) {
+      return lookupDomainTerm(payload.payload);
     }
     return { status: "error", errorMessage: "Extension runtime not available." };
+  }
+  async function performLookup(sanitized, anchorRect) {
+    const word = sanitized.cleanTerm;
+    const coords = calculatePopupPosition({
+      anchorRect,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    });
+    popupView.showLoading(word, coords, activeConfig.theme);
+    try {
+      const response = await sendBackgroundMessage({
+        action: "LOOKUP_DOMAIN_TERM",
+        payload: {
+          term: sanitized.cleanTerm,
+          rawText: sanitized.raw,
+          isUppercase: sanitized.isUppercase,
+          wordCount: sanitized.wordCount
+        }
+      });
+      if (!response || response.status !== "success") {
+        const msg = response?.errorMessage || `No definitions found for "${word}".`;
+        popupView.showError(msg, word, coords, activeConfig.theme);
+        return;
+      }
+      const entry = response.entry || response.data;
+      popupView.showResult(entry, coords, activeConfig.theme, activeConfig);
+    } catch (err) {
+      popupView.showError("Unable to connect to dictionary service. Please check your internet connection.", word, coords, activeConfig.theme);
+    }
   }
   async function handleDoubleClick(event) {
     if (!activeConfig.enabled) {
@@ -1311,8 +1645,8 @@
       text = event.target.textContent;
       anchorRect = event.target.getBoundingClientRect();
     }
-    const { isValid, word } = sanitizeWord(text);
-    if (!isValid || !word) {
+    const sanitized = sanitizeDomainTerm(text);
+    if (!sanitized.isValid || !sanitized.cleanTerm) {
       return;
     }
     if (!anchorRect || anchorRect.width === 0 && anchorRect.height === 0) {
@@ -1322,29 +1656,55 @@
         return;
       }
     }
-    const coords = calculatePopupPosition({
-      anchorRect,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight
-    });
-    popupView.showLoading(word, coords, activeConfig.theme);
-    try {
-      const response = await sendBackgroundMessage({
-        action: "LOOKUP_WORD",
-        word
-      });
-      if (!response || response.status !== "success") {
-        const msg = response?.errorMessage || `No definitions found for "${word}".`;
-        popupView.showError(msg, word, coords, activeConfig.theme);
+    floatingIcon.dismiss();
+    await performLookup(sanitized, anchorRect);
+  }
+  function handleMouseUp(event) {
+    if (!activeConfig.enabled || !activeConfig.multiWordEnabled) {
+      return;
+    }
+    const sandbox = document.querySelector(".test-sandbox");
+    if (!sandbox || !sandbox.contains(event.target) && !event.target.closest(".test-area")) {
+      return;
+    }
+    setTimeout(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        floatingIcon.dismiss();
         return;
       }
-      popupView.showResult(response.entry, coords, activeConfig.theme);
-    } catch (err) {
-      popupView.showError("Unable to connect to dictionary service. Please check your internet connection.", word, coords, activeConfig.theme);
-    }
+      const text = selection.toString();
+      const sanitized = sanitizeDomainTerm(text);
+      if (!sanitized.isValid || sanitized.wordCount < 2 || sanitized.wordCount > 4) {
+        floatingIcon.dismiss();
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      const anchorRect = range.getBoundingClientRect();
+      if (anchorRect.width === 0 && anchorRect.height === 0) {
+        floatingIcon.dismiss();
+        return;
+      }
+      const hasModifier = activeConfig.modifierKey !== "none" && matchesModifier(event, activeConfig.modifierKey);
+      if (hasModifier) {
+        floatingIcon.dismiss();
+        performLookup(sanitized, anchorRect);
+        return;
+      }
+      let top = anchorRect.top - 34;
+      if (top < 10) top = anchorRect.bottom + 6;
+      let left = Math.min(anchorRect.right + 4, window.innerWidth - 36);
+      top = Math.max(8, Math.min(top, window.innerHeight - 36));
+      left = Math.max(8, Math.min(left, window.innerWidth - 36));
+      floatingIcon.show({ top, left }, () => {
+        performLookup(sanitized, anchorRect);
+      });
+    }, 10);
   }
   async function initializeOptions() {
     const toggleEnabled = document.getElementById("toggleEnabled");
+    const toggleMultiWord = document.getElementById("toggleMultiWord");
+    const toggleDomainBadges = document.getElementById("toggleDomainBadges");
     const themeSelect = document.getElementById("themeSelect");
     const modifierRadios = document.querySelectorAll('input[name="modifierKey"]');
     try {
@@ -1354,6 +1714,12 @@
     }
     if (toggleEnabled) {
       toggleEnabled.checked = activeConfig.enabled;
+    }
+    if (toggleMultiWord) {
+      toggleMultiWord.checked = activeConfig.multiWordEnabled;
+    }
+    if (toggleDomainBadges) {
+      toggleDomainBadges.checked = activeConfig.domainBadgesEnabled;
     }
     if (themeSelect) {
       themeSelect.value = activeConfig.theme;
@@ -1367,6 +1733,20 @@
       toggleEnabled.addEventListener("change", async () => {
         activeConfig.enabled = toggleEnabled.checked;
         await saveSettings({ enabled: toggleEnabled.checked });
+        flashSavedBadge();
+      });
+    }
+    if (toggleMultiWord) {
+      toggleMultiWord.addEventListener("change", async () => {
+        activeConfig.multiWordEnabled = toggleMultiWord.checked;
+        await saveSettings({ multiWordEnabled: toggleMultiWord.checked });
+        flashSavedBadge();
+      });
+    }
+    if (toggleDomainBadges) {
+      toggleDomainBadges.addEventListener("change", async () => {
+        activeConfig.domainBadgesEnabled = toggleDomainBadges.checked;
+        await saveSettings({ domainBadgesEnabled: toggleDomainBadges.checked });
         flashSavedBadge();
       });
     }
@@ -1387,6 +1767,7 @@
       });
     }
     document.addEventListener("dblclick", handleDoubleClick);
+    document.addEventListener("mouseup", handleMouseUp);
   }
   document.addEventListener("DOMContentLoaded", initializeOptions);
 })();

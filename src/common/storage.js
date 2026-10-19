@@ -9,7 +9,10 @@ export const VALID_THEMES = ['auto', 'light', 'dark'];
 export const DEFAULT_CONFIG = Object.freeze({
   modifierKey: 'none',
   enabled: true,
-  theme: 'auto'
+  theme: 'auto',
+  multiWordEnabled: true,
+  domainBadgesEnabled: true,
+  schemaVersion: 2
 });
 
 export const STORAGE_KEY = 'settings';
@@ -46,7 +49,26 @@ export function validateConfig(raw = {}) {
     ? raw.theme
     : DEFAULT_CONFIG.theme;
 
-  return { modifierKey, enabled, theme };
+  const multiWordEnabled = typeof raw.multiWordEnabled === 'boolean'
+    ? raw.multiWordEnabled
+    : DEFAULT_CONFIG.multiWordEnabled;
+
+  const domainBadgesEnabled = typeof raw.domainBadgesEnabled === 'boolean'
+    ? raw.domainBadgesEnabled
+    : DEFAULT_CONFIG.domainBadgesEnabled;
+
+  const schemaVersion = typeof raw.schemaVersion === 'number'
+    ? raw.schemaVersion
+    : DEFAULT_CONFIG.schemaVersion;
+
+  return {
+    modifierKey,
+    enabled,
+    theme,
+    multiWordEnabled,
+    domainBadgesEnabled,
+    schemaVersion
+  };
 }
 
 /**

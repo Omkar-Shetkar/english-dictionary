@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   normalizeDictionaryResponse,
   normalizeWiktionaryResponse,
   lookupWord,
+  lookupDomainTerm,
+  clearCache,
   cleanHtml
 } from '../../src/background/dictionary-service.js';
 
@@ -165,5 +167,110 @@ describe('dictionary-service', () => {
     expect(result.status).toBe('not_found');
     expect(result.entry).toBeNull();
     expect(result.errorMessage).toContain('No definitions found for "totallynonexistent123"');
+  });
+
+  describe('lookupDomainTerm', () => {
+    beforeEach(() => {
+      clearCache();
+    });
+
+    it('routes uppercase acronym "AI" to Wiktionary & Wikipedia concurrently', async () => {
+      const mockFetch = vi.fn().mockImplementation(async (url) => {
+        if (url.includes('wiktionary.org/api/rest_v1/page/definition/AI')) {
+          return {
+            status: 200,
+            json: async () => ({
+              en: [
+                {
+                  partOfSpeech: 'Noun',
+                  definitions: [
+                    { definition: '<p>(computing) <a href="/wiki/Artificial_intelligence">Artificial intelligence</a>.</p>' }
+                  ]
+                }
+              ]
+            })
+          };
+        }
+        if (url.includes('wikipedia.org/api/rest_v1/page/summary/AI')) {
+          return {
+            status: 200,
+            json: async () => ({
+              type: 'standard',
+              title: 'Artificial intelligence',
+              description: 'Field of computer science',
+              extract: 'Artificial intelligence (AI) is intelligence exhibited by machines.'
+            })
+          };
+        }
+        if (url.includes('api.dictionaryapi.dev/api/v2/entries/en/ai')) {
+          return {
+            status: 200,
+            json: async () => [
+              {
+                word: 'ai',
+                phonetics: [{ audio: 'https://example.com/audio/ai.mp3' }],
+                meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A three-toed sloth.' }] }]
+              }
+            ]
+          };
+        }
+        return { status: 404 };
+      });
+
+      const res = await lookupDomainTerm({ term: 'AI', isUppercase: true, wordCount: 1 }, mockFetch);
+      expect(res.status).toBe('success');
+      expect(res.entry.word).toBe('AI');
+      expect(res.entry.isAcronym).toBe(true);
+      expect(res.entry.acronymExpansion).toBe('Artificial Intelligence');
+      expect(res.entry.meanings[0].domain).toBe('Computing');
+      expect(res.entry.audioUrl).toBe('https://example.com/audio/ai.mp3');
+      expect(res.entry.encyclopedicSummary).toContain('intelligence exhibited by machines');
+      expect(res.entry.generalMeanings.length).toBeGreaterThan(0);
+      expect(res.entry.generalMeanings[0].definitions[0].definition).toContain('three-toed sloth');
+    });
+
+    it('routes multi-word phrase "machine learning" to Wikipedia Summary', async () => {
+      const mockFetch = vi.fn().mockImplementation(async (url) => {
+        if (url.includes('wikipedia.org/api/rest_v1/page/summary/machine_learning')) {
+          return {
+            status: 200,
+            json: async () => ({
+              type: 'standard',
+              title: 'Machine learning',
+              description: 'Field of computer science',
+              extract: 'Machine learning is a field of study in artificial intelligence.'
+            })
+          };
+        }
+        return { status: 404 };
+      });
+
+      const res = await lookupDomainTerm({ term: 'machine learning', isUppercase: false, wordCount: 2 }, mockFetch);
+      expect(res.status).toBe('success');
+      expect(res.entry.word).toBe('Machine learning');
+      expect(res.entry.meanings[0].domain).toBe('Computing');
+      expect(res.entry.encyclopedicSummary).toContain('field of study in artificial intelligence');
+    });
+
+    it('serves repeated lookups directly from in-memory cache', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        status: 200,
+        json: async () => ({
+          type: 'standard',
+          title: 'Quantum computing',
+          description: 'Area of computer science',
+          extract: 'Quantum computing is a rapidly-emerging technology.'
+        })
+      });
+
+      const res1 = await lookupDomainTerm({ term: 'Quantum computing', wordCount: 2 }, mockFetch);
+      expect(res1.status).toBe('success');
+      expect(mockFetch).toHaveBeenCalledTimes(2); // Wikipedia summary + Wiktionary
+
+      // Second call should hit in-memory cache without invoking fetchFn again
+      const res2 = await lookupDomainTerm({ term: 'Quantum computing', wordCount: 2 }, mockFetch);
+      expect(res2.status).toBe('success');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 });
