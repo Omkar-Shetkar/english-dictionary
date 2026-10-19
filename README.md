@@ -1,4 +1,4 @@
-# English Dictionary Firefox Addon 📖⚡
+# Simple English Dictionary Firefox Addon 📖⚡
 
 A simple, fast, and intuitive English dictionary addon for Mozilla Firefox (Manifest V3). Double-click any word on any webpage to immediately view its pronunciation, definition, and usage examples without leaving your tab.
 
@@ -80,7 +80,7 @@ npm run package:source
 1. Log in to [AMO Developer Hub](https://addons.mozilla.org/developers/).
 2. Click **Submit a New Add-on**.
 3. Select distribution: **On this site** (publicly listed on AMO) or **On your own** (unlisted/self-hosted).
-4. Upload `web-ext-artifacts/english_dictionary_-_double-click_lookup-1.0.0.zip`.
+4. Upload `web-ext-artifacts/simple_english_dictionary-*.zip`.
 5. Under **Source Code Submission**, select **Yes** and upload `web-ext-artifacts/source-code.zip` with build instructions:
    ```bash
    npm install && npm run build

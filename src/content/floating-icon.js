@@ -61,7 +61,7 @@ export class FloatingIcon {
 
     const btn = document.createElement('button');
     btn.className = 'dict-floating-btn';
-    btn.title = 'Look up in English Dictionary';
+    btn.title = 'Look up in Simple English Dictionary';
     btn.setAttribute('aria-label', 'Look up selection');
     btn.appendChild(createBookSvg());
 

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "English Dictionary - Double-Click Lookup",
+  "name": "Simple English Dictionary",
   "version": "1.0.2",
   "description": "Double-click any word to view its pronunciation, definitions, and usage examples instantly.",
   "icons": {
@@ -29,7 +29,7 @@
       "16": "icons/icon-16.png",
       "48": "icons/icon-48.png"
     },
-    "default_title": "English Dictionary Preferences",
+    "default_title": "Simple English Dictionary Preferences",
     "default_popup": "options/options.html"
   },
   "options_ui": {

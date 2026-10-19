@@ -54,4 +54,4 @@ if (isFirefox) {
   });
 }
 
-console.log('[English Dictionary] Background service initialized.');
+console.log('[Simple English Dictionary] Background service initialized.');
