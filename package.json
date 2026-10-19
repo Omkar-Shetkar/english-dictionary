@@ -1,6 +1,6 @@
 {
   "name": "english-dictionary-firefox",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Simple and intuitive English dictionary Firefox addon for instant word lookup on double-click.",
   "type": "module",
   "scripts": {
