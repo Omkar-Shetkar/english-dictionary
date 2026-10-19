@@ -3,7 +3,7 @@
  * Coordinates dictionary API lookups and configuration requests.
  */
 
-import { lookupWord } from './dictionary-service.js';
+import { lookupWord, lookupDomainTerm } from './dictionary-service.js';
 import { getSettings } from '../common/storage.js';
 
 async function handleMessage(message, sender) {
@@ -12,13 +12,24 @@ async function handleMessage(message, sender) {
   }
 
   switch (message.action) {
+    case 'LOOKUP_DOMAIN_TERM': {
+      const payload = message.payload || message;
+      const res = await lookupDomainTerm(payload);
+      if (res && res.entry && !res.data) {
+        res.data = res.entry;
+      }
+      return res;
+    }
+
     case 'LOOKUP_WORD': {
       const { word } = message;
       return await lookupWord(word);
     }
 
+    case 'GET_SETTINGS':
     case 'GET_CONFIG': {
-      return await getSettings();
+      const data = await getSettings();
+      return { status: 'success', data };
     }
 
     default:

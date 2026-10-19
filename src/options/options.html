@@ -94,6 +94,36 @@
         </div>
       </section>
 
+      <!-- Advanced Domain & Multi-Word Settings -->
+      <section class="setting-card">
+        <div class="setting-info" style="margin-bottom: 12px;">
+          <h2 class="setting-label">Domain Vocabulary & Phrases</h2>
+          <p class="setting-desc">Configure technical terms, acronym expansions, and multi-word highlights.</p>
+        </div>
+
+        <div class="setting-row" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+          <div class="setting-info">
+            <label class="setting-label" for="toggleMultiWord">Multi-Word Phrase Selection</label>
+            <p class="setting-desc">Highlighting 2 to 4 words displays a compact floating dictionary icon without interfering with copying.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggleMultiWord" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" style="padding-top: 12px;">
+          <div class="setting-info">
+            <label class="setting-label" for="toggleDomainBadges">Domain Category Badges</label>
+            <p class="setting-desc">Display visual field badges such as [Computing], [Science], [Mathematics], [Finance], and [History].</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggleDomainBadges" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </section>
+
       <!-- Appearance -->
       <section class="setting-card">
         <div class="setting-row">
@@ -109,15 +139,27 @@
         </div>
       </section>
 
+      <!-- Keyboard & Selection Guide -->
+      <section class="setting-card guide-card">
+        <div class="setting-info">
+          <h2 class="setting-label">How to Use</h2>
+        </div>
+        <ul class="guide-list">
+          <li><strong>Single Words:</strong> Double-click any word or abbreviation (<kbd>AI</kbd>, <kbd>photosynthesis</kbd>, <kbd>amortization</kbd>) to view definitions.</li>
+          <li><strong>Compound Concepts:</strong> Highlight 2 to 4 words (<mark>machine learning</mark>, <mark>compound interest</mark>) and click the floating dictionary icon.</li>
+          <li><strong>Modifier Shortcut:</strong> Hold your selected trigger key (<kbd>Alt</kbd>, <kbd>Ctrl</kbd>, or <kbd>Shift</kbd>) while selecting to open popup immediately on mouse release.</li>
+        </ul>
+      </section>
+
       <!-- Interactive Test Area -->
       <section class="setting-card test-area">
         <div class="setting-info">
           <h2 class="setting-label">Test Your Settings</h2>
-          <p class="setting-desc">Double-click any highlighted word below to verify your trigger:</p>
+          <p class="setting-desc">Double-click any highlighted word or select a phrase below to test:</p>
         </div>
         <div class="test-sandbox">
           <p>
-            Language learners admire <mark class="demo-word">serendipity</mark> and appreciate <mark class="demo-word">eloquence</mark> while discovering <mark class="demo-word">ephemeral</mark> treasures in literature.
+            Researchers in <mark class="demo-word">AI</mark> utilize <mark class="demo-word">machine learning</mark> to explore <mark class="demo-word">polymorphism</mark> and appreciate <mark class="demo-word">Renaissance</mark> literature.
           </p>
           <div id="testHint" class="test-hint"></div>
         </div>
@@ -125,9 +167,9 @@
     </main>
 
     <footer class="options-footer">
-      <span>English Dictionary Firefox Addon v1.0.0</span>
+      <span>English Dictionary Firefox Addon v1.0.2</span>
       <span class="footer-dot">•</span>
-      <span>Powered by Free Dictionary API</span>
+      <span>Powered by Free Dictionary API, Wiktionary &amp; Wikipedia</span>
     </footer>
   </div>
 

@@ -1,22 +1,23 @@
-/**
- * Content Script: Double-click detector and popup coordinator.
- * Injected into web pages to listen for word selections and render dictionary popups.
- */
-
-import { sanitizeWord } from '../common/sanitize.js';
+import { sanitizeDomainTerm } from '../common/sanitize.js';
 import { calculatePopupPosition } from '../common/position.js';
 import { matchesModifier, getSettings } from '../common/storage.js';
 import { PopupView } from './popup-view.js';
+import { FloatingIcon } from './floating-icon.js';
 import { POPUP_STYLES } from './popup-styles.js';
 
 const popupView = new PopupView();
 popupView.setStyles(POPUP_STYLES);
 
+const floatingIcon = new FloatingIcon();
+floatingIcon.setStyles(POPUP_STYLES);
+
 // In-memory cached configuration for fast synchronous event checks
 let activeConfig = {
   modifierKey: 'none',
   enabled: true,
-  theme: 'auto'
+  theme: 'auto',
+  multiWordEnabled: true,
+  domainBadgesEnabled: true
 };
 
 /**
@@ -76,15 +77,52 @@ async function sendBackgroundMessage(payload) {
 }
 
 /**
- * Main double-click event listener.
+ * Coordinates dictionary lookup and rendering.
+ * @param {object} sanitized
+ * @param {DOMRect} anchorRect
+ */
+async function performLookup(sanitized, anchorRect) {
+  const word = sanitized.cleanTerm;
+  const coords = calculatePopupPosition({
+    anchorRect,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight
+  });
+
+  popupView.showLoading(word, coords, activeConfig.theme);
+
+  try {
+    const response = await sendBackgroundMessage({
+      action: 'LOOKUP_DOMAIN_TERM',
+      payload: {
+        term: sanitized.cleanTerm,
+        rawText: sanitized.raw,
+        isUppercase: sanitized.isUppercase,
+        wordCount: sanitized.wordCount
+      }
+    });
+
+    if (!response || response.status !== 'success') {
+      const msg = response?.errorMessage || `No definitions found for "${word}". Check spelling.`;
+      popupView.showError(msg, word, coords, activeConfig.theme);
+      return;
+    }
+
+    const entry = response.entry || response.data;
+    popupView.showResult(entry, coords, activeConfig.theme, activeConfig);
+  } catch (err) {
+    popupView.showError('Unable to connect to dictionary service. Please check your internet connection.', word, coords, activeConfig.theme);
+  }
+}
+
+/**
+ * Main double-click event listener for single-word lookup.
  */
 document.addEventListener('dblclick', async (event) => {
-  // If extension is disabled by user, ignore
   if (!activeConfig.enabled) {
     return;
   }
 
-  // Validate modifier key combination (none, alt, ctrl, shift)
   if (!matchesModifier(event, activeConfig.modifierKey)) {
     return;
   }
@@ -95,46 +133,79 @@ document.addEventListener('dblclick', async (event) => {
   }
 
   const rawText = selection.toString();
-  const { isValid, word } = sanitizeWord(rawText);
+  const sanitized = sanitizeDomainTerm(rawText);
 
-  // If not a valid word, do nothing (preserves standard text selection)
-  if (!isValid || !word) {
+  if (!sanitized.isValid || !sanitized.cleanTerm) {
     return;
   }
 
   const range = selection.getRangeAt(0);
   const anchorRect = range.getBoundingClientRect();
 
-  // If anchor rectangle is invisible or zero-sized, skip
   if (anchorRect.width === 0 && anchorRect.height === 0) {
     return;
   }
 
-  // Calculate boundary-aware coordinates
-  const coords = calculatePopupPosition({
-    anchorRect,
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight
-  });
+  floatingIcon.dismiss();
+  await performLookup(sanitized, anchorRect);
+});
 
-  // Immediately render loading card for instant user feedback (<16ms)
-  popupView.showLoading(word, coords, activeConfig.theme);
+/**
+ * Multi-word drag-selection listener (2 to 4 words).
+ */
+document.addEventListener('mouseup', (event) => {
+  if (!activeConfig.enabled || !activeConfig.multiWordEnabled) {
+    return;
+  }
 
-  try {
-    const response = await sendBackgroundMessage({
-      action: 'LOOKUP_WORD',
-      word
-    });
+  if (event.target && event.target.id && String(event.target.id).startsWith('eng-dict-')) {
+    return;
+  }
 
-    if (!response || response.status !== 'success') {
-      const msg = response?.errorMessage || `No definitions found for "${word}". Check spelling.`;
-      popupView.showError(msg, word, coords, activeConfig.theme);
+  // Slight timeout to let selection settle
+  setTimeout(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      floatingIcon.dismiss();
       return;
     }
 
-    // Render full definitions and pronunciation card
-    popupView.showResult(response.entry, coords, activeConfig.theme);
-  } catch (err) {
-    popupView.showError('Unable to connect to dictionary service. Please check your internet connection.', word, coords, activeConfig.theme);
-  }
+    const rawText = selection.toString();
+    const sanitized = sanitizeDomainTerm(rawText);
+
+    // Only trigger for 2 to 4 word phrases
+    if (!sanitized.isValid || sanitized.wordCount < 2 || sanitized.wordCount > 4) {
+      floatingIcon.dismiss();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const anchorRect = range.getBoundingClientRect();
+    if (anchorRect.width === 0 && anchorRect.height === 0) {
+      floatingIcon.dismiss();
+      return;
+    }
+
+    // Direct modifier trigger if configured
+    const hasModifier = activeConfig.modifierKey !== 'none' && matchesModifier(event, activeConfig.modifierKey);
+    if (hasModifier) {
+      floatingIcon.dismiss();
+      performLookup(sanitized, anchorRect);
+      return;
+    }
+
+    // Compute floating icon coordinates
+    let top = anchorRect.top - 34;
+    if (top < 10) {
+      top = anchorRect.bottom + 6;
+    }
+    let left = Math.min(anchorRect.right + 4, window.innerWidth - 36);
+    top = Math.max(8, Math.min(top, window.innerHeight - 36));
+    left = Math.max(8, Math.min(left, window.innerWidth - 36));
+
+    floatingIcon.show({ top, left }, () => {
+      performLookup(sanitized, anchorRect);
+    });
+  }, 10);
 });
+

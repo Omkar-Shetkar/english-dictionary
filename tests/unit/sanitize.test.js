@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeWord, MAX_WORD_LENGTH } from '../../src/common/sanitize.js';
+import { sanitizeWord, sanitizeDomainTerm, MAX_WORD_LENGTH } from '../../src/common/sanitize.js';
 
 describe('sanitizeWord utility', () => {
   it('sanitizes standard clean words', () => {
@@ -78,5 +78,59 @@ describe('sanitizeWord utility', () => {
 
     const longestValid = 'a'.repeat(MAX_WORD_LENGTH);
     expect(sanitizeWord(longestValid).isValid).toBe(true);
+  });
+});
+
+describe('sanitizeDomainTerm utility', () => {
+  it('preserves casing for uppercase acronyms (e.g., AI, RAM, DNA)', () => {
+    const ai = sanitizeDomainTerm('AI');
+    expect(ai.isValid).toBe(true);
+    expect(ai.term).toBe('AI');
+    expect(ai.isUppercase).toBe(true);
+    expect(ai.isMultiWord).toBe(false);
+    expect(ai.wordCount).toBe(1);
+
+    const ram = sanitizeDomainTerm('"RAM"');
+    expect(ram.isValid).toBe(true);
+    expect(ram.term).toBe('RAM');
+    expect(ram.isUppercase).toBe(true);
+  });
+
+  it('preserves internal punctuation in acronyms and abbreviations (e.g., A.I., e.g., P/E ratio)', () => {
+    const aiWithDots = sanitizeDomainTerm('A.I.');
+    expect(aiWithDots.isValid).toBe(true);
+    expect(aiWithDots.term).toBe('A.I.');
+    expect(aiWithDots.isUppercase).toBe(true);
+
+    const pe = sanitizeDomainTerm('P/E ratio');
+    expect(pe.isValid).toBe(true);
+    expect(pe.term).toBe('P/E ratio');
+    expect(pe.isMultiWord).toBe(true);
+    expect(pe.wordCount).toBe(2);
+  });
+
+  it('supports 2 to 4 word compound phrases', () => {
+    const twoWords = sanitizeDomainTerm('machine learning');
+    expect(twoWords.isValid).toBe(true);
+    expect(twoWords.term).toBe('machine learning');
+    expect(twoWords.isMultiWord).toBe(true);
+    expect(twoWords.wordCount).toBe(2);
+
+    const fourWords = sanitizeDomainTerm('gross domestic product index');
+    expect(fourWords.isValid).toBe(true);
+    expect(fourWords.wordCount).toBe(4);
+    expect(fourWords.isMultiWord).toBe(true);
+  });
+
+  it('rejects selections with more than 4 words', () => {
+    const fiveWords = sanitizeDomainTerm('this is five words long');
+    expect(fiveWords.isValid).toBe(false);
+    expect(fiveWords.wordCount).toBe(5);
+  });
+
+  it('rejects pure symbols or numeric selections', () => {
+    expect(sanitizeDomainTerm('12345').isValid).toBe(false);
+    expect(sanitizeDomainTerm('!!!').isValid).toBe(false);
+    expect(sanitizeDomainTerm('').isValid).toBe(false);
   });
 });

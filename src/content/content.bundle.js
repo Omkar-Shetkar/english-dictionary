@@ -1,26 +1,90 @@
 (() => {
   // src/common/sanitize.js
-  var LEADING_BOUNDARY_REGEX = /^[\s\p{P}\p{S}]+/u;
-  var TRAILING_BOUNDARY_REGEX = /[\s\p{P}\p{S}]+$/u;
+  var LEADING_BOUNDARY_REGEX = /^[\s"'“‘(\[{<«]+/u;
+  var TRAILING_BOUNDARY_REGEX = /[\s"'”’)\]}>».,:;!?-]+$/u;
   var HAS_LETTER_REGEX = /\p{L}/u;
   var MAX_WORD_LENGTH = 45;
-  function sanitizeWord(rawText) {
+  var MAX_PHRASE_WORDS = 4;
+  var MAX_PHRASE_LENGTH = 120;
+  function sanitizeDomainTerm(rawText) {
     if (typeof rawText !== "string") {
-      return { isValid: false, word: "", raw: "" };
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw: "",
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount: 0
+      };
     }
     const raw = rawText.trim();
     if (!raw) {
-      return { isValid: false, word: "", raw };
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount: 0
+      };
     }
-    let cleaned = raw.replace(LEADING_BOUNDARY_REGEX, "").replace(TRAILING_BOUNDARY_REGEX, "");
-    cleaned = cleaned.toLowerCase();
-    const isValid = Boolean(
-      cleaned.length > 0 && cleaned.length <= MAX_WORD_LENGTH && HAS_LETTER_REGEX.test(cleaned) && !/\s/.test(cleaned)
-    );
+    const normalizedSpaces = raw.replace(/\s+/g, " ");
+    let cleaned = normalizedSpaces.replace(LEADING_BOUNDARY_REGEX, "").trim();
+    const dottedAbbrevMatch = cleaned.match(/^([A-Za-z]\.(?:[A-Za-z]\.)+)(?:[\s"'”’)\]}>».,:;!?-]*)$/);
+    if (dottedAbbrevMatch) {
+      cleaned = dottedAbbrevMatch[1];
+    } else {
+      cleaned = cleaned.replace(TRAILING_BOUNDARY_REGEX, "").trim();
+    }
+    if (!cleaned || cleaned.length > MAX_PHRASE_LENGTH || !HAS_LETTER_REGEX.test(cleaned)) {
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount: 0
+      };
+    }
+    const words = cleaned.split(" ").filter(Boolean);
+    const wordCount = words.length;
+    if (wordCount === 0 || wordCount > MAX_PHRASE_WORDS) {
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount
+      };
+    }
+    const hasInvalidToken = words.some((w) => !HAS_LETTER_REGEX.test(w) || w.length > MAX_WORD_LENGTH);
+    if (hasInvalidToken) {
+      return {
+        isValid: false,
+        term: "",
+        cleanTerm: "",
+        raw,
+        isUppercase: false,
+        isMultiWord: false,
+        wordCount
+      };
+    }
+    const isMultiWord = wordCount > 1;
+    const lettersOnly = cleaned.replace(/[^\p{L}]/gu, "");
+    const isUppercase = lettersOnly.length > 0 && lettersOnly === lettersOnly.toUpperCase();
     return {
-      isValid,
-      word: isValid ? cleaned : "",
-      raw
+      isValid: true,
+      term: cleaned,
+      cleanTerm: cleaned,
+      raw,
+      isUppercase,
+      isMultiWord,
+      wordCount
     };
   }
 
@@ -71,7 +135,10 @@
   var DEFAULT_CONFIG = Object.freeze({
     modifierKey: "none",
     enabled: true,
-    theme: "auto"
+    theme: "auto",
+    multiWordEnabled: true,
+    domainBadgesEnabled: true,
+    schemaVersion: 2
   });
   var STORAGE_KEY = "settings";
   function getStorageArea() {
@@ -87,7 +154,17 @@
     const modifierKey = VALID_MODIFIER_KEYS.includes(raw.modifierKey) ? raw.modifierKey : DEFAULT_CONFIG.modifierKey;
     const enabled = typeof raw.enabled === "boolean" ? raw.enabled : DEFAULT_CONFIG.enabled;
     const theme = VALID_THEMES.includes(raw.theme) ? raw.theme : DEFAULT_CONFIG.theme;
-    return { modifierKey, enabled, theme };
+    const multiWordEnabled = typeof raw.multiWordEnabled === "boolean" ? raw.multiWordEnabled : DEFAULT_CONFIG.multiWordEnabled;
+    const domainBadgesEnabled = typeof raw.domainBadgesEnabled === "boolean" ? raw.domainBadgesEnabled : DEFAULT_CONFIG.domainBadgesEnabled;
+    const schemaVersion = typeof raw.schemaVersion === "number" ? raw.schemaVersion : DEFAULT_CONFIG.schemaVersion;
+    return {
+      modifierKey,
+      enabled,
+      theme,
+      multiWordEnabled,
+      domainBadgesEnabled,
+      schemaVersion
+    };
   }
   async function getSettings() {
     const storage = getStorageArea();
@@ -327,20 +404,35 @@
       this.host.style.top = `${coords.top}px`;
       this.host.style.left = `${coords.left}px`;
     }
-    _createHeader(word, phoneticText = "", audioUrl = null, showAudio = false) {
+    _createHeader(word, phoneticText = "", audioUrl = null, showAudio = false, extra = {}) {
       const header = document.createElement("div");
       header.className = "dict-header";
       const titleGroup = document.createElement("div");
       titleGroup.className = "dict-title-group";
+      const titleRow = document.createElement("div");
+      titleRow.className = "dict-title-row";
       const wordEl = document.createElement("span");
       wordEl.className = "dict-word";
       wordEl.textContent = word;
-      titleGroup.appendChild(wordEl);
+      titleRow.appendChild(wordEl);
+      if (extra && extra.isAcronym) {
+        const acronymBadge = document.createElement("span");
+        acronymBadge.className = "dict-acronym-badge";
+        acronymBadge.textContent = "Acronym";
+        titleRow.appendChild(acronymBadge);
+      }
       if (phoneticText) {
         const phoneticEl = document.createElement("span");
         phoneticEl.className = "dict-phonetic";
         phoneticEl.textContent = phoneticText;
-        titleGroup.appendChild(phoneticEl);
+        titleRow.appendChild(phoneticEl);
+      }
+      titleGroup.appendChild(titleRow);
+      if (extra && extra.isAcronym && extra.acronymExpansion) {
+        const expansionEl = document.createElement("div");
+        expansionEl.className = "dict-acronym-expansion";
+        expansionEl.textContent = extra.acronymExpansion;
+        titleGroup.appendChild(expansionEl);
       }
       const actions = document.createElement("div");
       actions.className = "dict-header-actions";
@@ -387,24 +479,67 @@
       card.appendChild(loadingView);
       this._renderCard(card);
     }
-    showResult(entry, coords, theme = "auto") {
+    showResult(entry, coords, theme = "auto", config = {}) {
       this._ensureMounted();
       this._updatePosition(coords);
       const card = document.createElement("div");
       card.className = `dict-card ${this._getThemeClass(theme)}`;
-      card.appendChild(this._createHeader(entry.word, entry.phonetic, entry.audioUrl, true));
+      const showDomainBadges = config?.domainBadgesEnabled !== false;
+      card.appendChild(this._createHeader(
+        entry.word,
+        entry.phonetic,
+        entry.audioUrl,
+        Boolean(entry.audioUrl || entry.word),
+        {
+          isAcronym: entry.isAcronym,
+          acronymExpansion: entry.acronymExpansion
+        }
+      ));
       const body = document.createElement("div");
       body.className = "dict-body";
-      for (const group of entry.meanings) {
+      if (entry.encyclopedicSummary) {
+        const encycloBlock = document.createElement("div");
+        encycloBlock.className = "dict-encyclopedic-block";
+        const summaryText = document.createElement("p");
+        summaryText.className = "dict-encyclopedic-text";
+        summaryText.textContent = entry.encyclopedicSummary;
+        encycloBlock.appendChild(summaryText);
+        if (entry.referenceUrl) {
+          const refLink = document.createElement("a");
+          refLink.className = "dict-reference-link";
+          refLink.href = entry.referenceUrl;
+          refLink.target = "_blank";
+          refLink.rel = "noopener noreferrer";
+          refLink.textContent = "Learn more on Wikipedia \u2192";
+          encycloBlock.appendChild(refLink);
+        }
+        body.appendChild(encycloBlock);
+      }
+      const renderMeaningGroup = (group) => {
         const groupEl = document.createElement("div");
         groupEl.className = "dict-meaning-group";
-        const badge = document.createElement("span");
-        badge.className = "dict-pos-badge";
-        badge.textContent = group.partOfSpeech;
-        groupEl.appendChild(badge);
+        const badgesRow = document.createElement("div");
+        badgesRow.className = "dict-badges-row";
+        if (group.partOfSpeech) {
+          const badge = document.createElement("span");
+          badge.className = "dict-pos-badge";
+          badge.textContent = group.partOfSpeech;
+          badgesRow.appendChild(badge);
+        }
+        if (showDomainBadges && group.domain && group.domain !== "General") {
+          const domainBadge = document.createElement("span");
+          const domainClass = group.domain.toLowerCase().replace(/[^a-z0-9]/g, "");
+          domainBadge.className = `dict-domain-badge dict-domain-${domainClass}`;
+          domainBadge.textContent = group.domain;
+          badgesRow.appendChild(domainBadge);
+        }
+        if (badgesRow.childNodes.length > 0) {
+          groupEl.appendChild(badgesRow);
+        }
         const list = document.createElement("ol");
         list.className = "dict-definitions-list";
-        for (const d of group.definitions.slice(0, 3)) {
+        const defs = (group.definitions || []).slice(0, 3);
+        for (const d of defs) {
           const item = document.createElement("li");
           item.className = "dict-def-item";
           const defText = document.createElement("div");
@@ -428,7 +563,30 @@
           list.appendChild(item);
         }
         groupEl.appendChild(list);
-        body.appendChild(groupEl);
+        return groupEl;
+      };
+      if (entry.meanings && entry.meanings.length > 0) {
+        for (const group of entry.meanings) {
+          body.appendChild(renderMeaningGroup(group));
+        }
+      }
+      if (entry.generalMeanings && entry.generalMeanings.length > 0) {
+        const divider = document.createElement("div");
+        divider.className = "dict-stacked-divider";
+        const line1 = document.createElement("span");
+        line1.className = "dict-divider-line";
+        divider.appendChild(line1);
+        const label = document.createElement("span");
+        label.className = "dict-divider-label";
+        label.textContent = "General English Meanings";
+        divider.appendChild(label);
+        const line2 = document.createElement("span");
+        line2.className = "dict-divider-line";
+        divider.appendChild(line2);
+        body.appendChild(divider);
+        for (const group of entry.generalMeanings) {
+          body.appendChild(renderMeaningGroup(group));
+        }
       }
       card.appendChild(body);
       this._renderCard(card);
@@ -605,412 +763,110 @@
     }
   };
 
+  // src/content/floating-icon.js
+  var SVG_NS2 = "http://www.w3.org/2000/svg";
+  function createBookSvg() {
+    const svg = document.createElementNS(SVG_NS2, "svg");
+    svg.setAttribute("width", "15");
+    svg.setAttribute("height", "15");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2.2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    const path1 = document.createElementNS(SVG_NS2, "path");
+    path1.setAttribute("d", "M4 19.5A2.5 2.5 0 0 1 6.5 17H20");
+    const path2 = document.createElementNS(SVG_NS2, "path");
+    path2.setAttribute("d", "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z");
+    svg.appendChild(path1);
+    svg.appendChild(path2);
+    return svg;
+  }
+  var FloatingIcon = class {
+    constructor() {
+      this.host = null;
+      this.shadowRoot = null;
+      this.cssText = "";
+      this.onClickHandler = null;
+      this._handleOutsideClick = this._handleOutsideClick.bind(this);
+      this._handleScroll = this._handleScroll.bind(this);
+    }
+    setStyles(css) {
+      this.cssText = css;
+    }
+    show(coords, onClick) {
+      this.dismiss();
+      if (!coords) return;
+      this.onClickHandler = onClick;
+      this.host = document.createElement("div");
+      this.host.id = "eng-dict-floating-host-root";
+      this.host.className = "dict-floating-icon-host";
+      this.host.style.top = `${coords.top}px`;
+      this.host.style.left = `${coords.left}px`;
+      this.shadowRoot = this.host.attachShadow({ mode: "open" });
+      const styleEl = document.createElement("style");
+      styleEl.textContent = this.cssText;
+      this.shadowRoot.appendChild(styleEl);
+      const btn = document.createElement("button");
+      btn.className = "dict-floating-btn";
+      btn.title = "Look up in English Dictionary";
+      btn.setAttribute("aria-label", "Look up selection");
+      btn.appendChild(createBookSvg());
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const cb = this.onClickHandler;
+        this.dismiss();
+        if (cb) cb();
+      });
+      this.shadowRoot.appendChild(btn);
+      document.documentElement.appendChild(this.host);
+      document.addEventListener("mousedown", this._handleOutsideClick, true);
+      window.addEventListener("scroll", this._handleScroll, { passive: true });
+    }
+    dismiss() {
+      if (typeof document !== "undefined") {
+        if (this.host && document.contains(this.host)) {
+          this.host.remove();
+        }
+        document.removeEventListener("mousedown", this._handleOutsideClick, true);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("scroll", this._handleScroll);
+      }
+      this.host = null;
+      this.shadowRoot = null;
+      this.onClickHandler = null;
+    }
+    _handleOutsideClick(event) {
+      if (this.host && !this.host.contains(event.target)) {
+        this.dismiss();
+      }
+    }
+    _handleScroll() {
+      this.dismiss();
+    }
+  };
+
   // src/content/popup-styles.js
-  var POPUP_STYLES = `/* ==========================================================================
-   English Dictionary Firefox Addon - Shadow DOM Popup Styles
-   Glassmorphic, Modern, Responsive & Dynamic Card
-   ========================================================================== */
-
-:host {
-  all: initial;
-  position: fixed;
-  z-index: 2147483647;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #1e293b;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-/* Light Theme Variables (Default) */
-.dict-card {
-  --bg-primary: rgba(255, 255, 255, 0.94);
-  --bg-surface: #f8fafc;
-  --bg-hover: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --accent-color: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  --accent-light: #e0e7ff;
-  --border-color: rgba(226, 232, 240, 0.9);
-  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);
-  --pill-bg: #eef2ff;
-  --pill-color: #4338ca;
-  --example-border: #6366f1;
-}
-
-/* Dark Theme Support */
-@media (prefers-color-scheme: dark) {
-  .dict-card {
-    --bg-primary: rgba(15, 23, 42, 0.94);
-    --bg-surface: #1e293b;
-    --bg-hover: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --accent-color: #818cf8;
-    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    --accent-light: rgba(99, 102, 241, 0.2);
-    --border-color: rgba(51, 65, 85, 0.85);
-    --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -6px rgba(0, 0, 0, 0.35);
-    --pill-bg: rgba(99, 102, 241, 0.18);
-    --pill-color: #a5b4fc;
-    --example-border: #818cf8;
-  }
-}
-
-/* Explicit class theme overrides */
-.dict-card.theme-dark {
-  --bg-primary: rgba(15, 23, 42, 0.94);
-  --bg-surface: #1e293b;
-  --bg-hover: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --accent-color: #818cf8;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --accent-light: rgba(99, 102, 241, 0.2);
-  --border-color: rgba(51, 65, 85, 0.85);
-  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45);
-  --pill-bg: rgba(99, 102, 241, 0.18);
-  --pill-color: #a5b4fc;
-  --example-border: #818cf8;
-}
-
-.dict-card.theme-light {
-  --bg-primary: rgba(255, 255, 255, 0.94);
-  --bg-surface: #f8fafc;
-  --bg-hover: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --accent-color: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  --accent-light: #e0e7ff;
-  --border-color: rgba(226, 232, 240, 0.9);
-  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12);
-  --pill-bg: #eef2ff;
-  --pill-color: #4338ca;
-  --example-border: #6366f1;
-}
-
-/* Card Container */
-.dict-card {
-  width: 340px;
-  max-width: calc(100vw - 24px);
-  max-height: 420px;
-  background: var(--bg-primary);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  transform-origin: top left;
-  user-select: text;
-  overscroll-behavior: contain;
-}
-
-@keyframes dictFadeInScale {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Header */
-.dict-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px 10px 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-surface);
-}
-
-.dict-title-group {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.dict-word {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dict-phonetic {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
-}
-
-.dict-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* Buttons */
-.dict-btn {
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition: all 0.15s ease;
-  box-sizing: border-box;
-}
-
-.dict-btn svg {
-  display: block;
-  pointer-events: none;
-  flex-shrink: 0;
-}
-
-.dict-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.dict-btn:active {
-  transform: scale(0.93);
-}
-
-/* Audio Speaker Button */
-.dict-audio-btn {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  border-radius: 50%;
-  color: var(--accent-color);
-  background: var(--accent-light);
-  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dict-audio-btn svg {
-  width: 15px;
-  height: 15px;
-}
-
-.dict-audio-btn:hover {
-  background: var(--accent-color);
-  color: #ffffff;
-  transform: scale(1.08);
-}
-
-.dict-audio-btn.playing {
-  animation: dictPulse 0.9s infinite alternate;
-}
-
-@keyframes dictPulse {
-  from { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  to { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
-}
-
-/* Close Button */
-.dict-close-btn {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  min-height: 26px;
-  border-radius: 50%;
-  color: var(--text-muted);
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dict-close-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.dict-close-btn:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-}
-
-/* Body / Scrollable Content */
-.dict-body {
-  padding: 14px 16px;
-  overflow-y: auto;
-  flex: 1;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
-  overscroll-behavior: contain;
-}
-
-.dict-body::-webkit-scrollbar {
-  width: 5px;
-}
-
-.dict-body::-webkit-scrollbar-thumb {
-  background-color: var(--border-color);
-  border-radius: 10px;
-}
-
-/* Meaning Group */
-.dict-meaning-group {
-  margin-bottom: 14px;
-}
-
-.dict-meaning-group:last-child {
-  margin-bottom: 0;
-}
-
-.dict-pos-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 8px;
-  border-radius: 20px;
-  background: var(--pill-bg);
-  color: var(--pill-color);
-  margin-bottom: 8px;
-}
-
-.dict-definitions-list {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.dict-def-item {
-  font-size: 13.5px;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  line-height: 1.45;
-}
-
-.dict-def-item:last-child {
-  margin-bottom: 0;
-}
-
-.dict-example {
-  margin-top: 4px;
-  padding-left: 8px;
-  border-left: 2px solid var(--example-border);
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-style: italic;
-  line-height: 1.4;
-}
-
-.dict-synonyms {
-  margin-top: 6px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.dict-synonyms span {
-  color: var(--accent-color);
-  font-weight: 500;
-}
-
-/* Loading State */
-.dict-loading-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 16px;
-  gap: 12px;
-  color: var(--text-muted);
-}
-
-.dict-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2.5px solid var(--border-color);
-  border-top-color: var(--accent-color);
-  border-radius: 50%;
-  animation: dictSpin 0.7s linear infinite;
-}
-
-@keyframes dictSpin {
-  to { transform: rotate(360deg); }
-}
-
-/* Empty & Error State */
-.dict-error-view {
-  padding: 24px 18px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.dict-error-icon {
-  width: 32px;
-  height: 32px;
-  color: #f59e0b;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dict-error-icon svg {
-  width: 32px;
-  height: 32px;
-  display: block;
-}
-
-.dict-error-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.dict-error-desc {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  line-height: 1.4;
-  margin: 0;
-}
-`;
+  var POPUP_STYLES = '/* ==========================================================================\n   English Dictionary Firefox Addon - Shadow DOM Popup Styles\n   Glassmorphic, Modern, Responsive & Dynamic Card\n   ========================================================================== */\n\n:host {\n  all: initial;\n  position: fixed;\n  z-index: 2147483647;\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;\n  font-size: 14px;\n  line-height: 1.5;\n  color: #1e293b;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n\n*, *::before, *::after {\n  box-sizing: border-box;\n}\n\n/* Light Theme Variables (Default) */\n.dict-card {\n  --bg-primary: rgba(255, 255, 255, 0.94);\n  --bg-surface: #f8fafc;\n  --bg-hover: #f1f5f9;\n  --text-primary: #0f172a;\n  --text-secondary: #475569;\n  --text-muted: #64748b;\n  --accent-color: #4f46e5;\n  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  --accent-light: #e0e7ff;\n  --border-color: rgba(226, 232, 240, 0.9);\n  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);\n  --pill-bg: #eef2ff;\n  --pill-color: #4338ca;\n  --example-border: #6366f1;\n}\n\n/* Dark Theme Support */\n@media (prefers-color-scheme: dark) {\n  .dict-card {\n    --bg-primary: rgba(15, 23, 42, 0.94);\n    --bg-surface: #1e293b;\n    --bg-hover: #334155;\n    --text-primary: #f8fafc;\n    --text-secondary: #cbd5e1;\n    --text-muted: #94a3b8;\n    --accent-color: #818cf8;\n    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);\n    --accent-light: rgba(99, 102, 241, 0.2);\n    --border-color: rgba(51, 65, 85, 0.85);\n    --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45), 0 8px 16px -6px rgba(0, 0, 0, 0.35);\n    --pill-bg: rgba(99, 102, 241, 0.18);\n    --pill-color: #a5b4fc;\n    --example-border: #818cf8;\n  }\n}\n\n/* Explicit class theme overrides */\n.dict-card.theme-dark {\n  --bg-primary: rgba(15, 23, 42, 0.94);\n  --bg-surface: #1e293b;\n  --bg-hover: #334155;\n  --text-primary: #f8fafc;\n  --text-secondary: #cbd5e1;\n  --text-muted: #94a3b8;\n  --accent-color: #818cf8;\n  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);\n  --accent-light: rgba(99, 102, 241, 0.2);\n  --border-color: rgba(51, 65, 85, 0.85);\n  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.45);\n  --pill-bg: rgba(99, 102, 241, 0.18);\n  --pill-color: #a5b4fc;\n  --example-border: #818cf8;\n}\n\n.dict-card.theme-light {\n  --bg-primary: rgba(255, 255, 255, 0.94);\n  --bg-surface: #f8fafc;\n  --bg-hover: #f1f5f9;\n  --text-primary: #0f172a;\n  --text-secondary: #475569;\n  --text-muted: #64748b;\n  --accent-color: #4f46e5;\n  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  --accent-light: #e0e7ff;\n  --border-color: rgba(226, 232, 240, 0.9);\n  --shadow-lg: 0 14px 34px -4px rgba(15, 23, 42, 0.12);\n  --pill-bg: #eef2ff;\n  --pill-color: #4338ca;\n  --example-border: #6366f1;\n}\n\n/* Card Container */\n.dict-card {\n  width: 340px;\n  max-width: calc(100vw - 24px);\n  max-height: 420px;\n  background: var(--bg-primary);\n  backdrop-filter: blur(18px);\n  -webkit-backdrop-filter: blur(18px);\n  border: 1px solid var(--border-color);\n  border-radius: 16px;\n  box-shadow: var(--shadow-lg);\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n  animation: dictFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;\n  transform-origin: top left;\n  user-select: text;\n  overscroll-behavior: contain;\n}\n\n@keyframes dictFadeInScale {\n  from {\n    opacity: 0;\n    transform: translateY(6px) scale(0.97);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0) scale(1);\n  }\n}\n\n/* Header */\n.dict-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px 14px 10px 16px;\n  border-bottom: 1px solid var(--border-color);\n  background: var(--bg-surface);\n}\n\n.dict-title-group {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  overflow: hidden;\n  flex: 1;\n}\n\n.dict-title-row {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  overflow: hidden;\n}\n\n.dict-word {\n  font-size: 18px;\n  font-weight: 700;\n  color: var(--text-primary);\n  letter-spacing: -0.01em;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n\n.dict-acronym-badge {\n  display: inline-block;\n  font-size: 10px;\n  font-weight: 700;\n  text-transform: uppercase;\n  letter-spacing: 0.06em;\n  padding: 1.5px 6px;\n  border-radius: 4px;\n  background: var(--accent-light);\n  color: var(--accent-color);\n  line-height: 1.2;\n  flex-shrink: 0;\n}\n\n.dict-acronym-expansion {\n  font-size: 12.5px;\n  font-weight: 600;\n  color: var(--accent-color);\n  letter-spacing: -0.01em;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n\n.dict-phonetic {\n  font-size: 12.5px;\n  color: var(--text-muted);\n  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;\n}\n\n.dict-header-actions {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex-shrink: 0;\n}\n\n/* Buttons */\n.dict-btn {\n  background: transparent;\n  border: none;\n  border-radius: 8px;\n  cursor: pointer;\n  padding: 0;\n  margin: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  color: var(--text-secondary);\n  transition: all 0.15s ease;\n  box-sizing: border-box;\n}\n\n.dict-btn svg {\n  display: block;\n  pointer-events: none;\n  flex-shrink: 0;\n}\n\n.dict-btn:hover {\n  background: var(--bg-hover);\n  color: var(--text-primary);\n}\n\n.dict-btn:active {\n  transform: scale(0.93);\n}\n\n/* Audio Speaker Button */\n.dict-audio-btn {\n  width: 28px;\n  height: 28px;\n  min-width: 28px;\n  min-height: 28px;\n  border-radius: 50%;\n  color: var(--accent-color);\n  background: var(--accent-light);\n  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;\n  padding: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.dict-audio-btn svg {\n  width: 15px;\n  height: 15px;\n}\n\n.dict-audio-btn:hover {\n  background: var(--accent-color);\n  color: #ffffff;\n  transform: scale(1.08);\n}\n\n.dict-audio-btn.playing {\n  animation: dictPulse 0.9s infinite alternate;\n}\n\n@keyframes dictPulse {\n  from { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }\n  to { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }\n}\n\n/* Close Button */\n.dict-close-btn {\n  width: 26px;\n  height: 26px;\n  min-width: 26px;\n  min-height: 26px;\n  border-radius: 50%;\n  color: var(--text-muted);\n  padding: 0;\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.dict-close-btn svg {\n  width: 14px;\n  height: 14px;\n}\n\n.dict-close-btn:hover {\n  background: rgba(239, 68, 68, 0.12);\n  color: #ef4444;\n}\n\n/* Body / Scrollable Content */\n.dict-body {\n  padding: 14px 16px;\n  overflow-y: auto;\n  flex: 1;\n  scrollbar-width: thin;\n  scrollbar-color: var(--border-color) transparent;\n  overscroll-behavior: contain;\n}\n\n.dict-body::-webkit-scrollbar {\n  width: 5px;\n}\n\n.dict-body::-webkit-scrollbar-thumb {\n  background-color: var(--border-color);\n  border-radius: 10px;\n}\n\n/* Meaning Group */\n.dict-meaning-group {\n  margin-bottom: 14px;\n}\n\n.dict-meaning-group:last-child {\n  margin-bottom: 0;\n}\n\n/* Badges Row */\n.dict-badges-row {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  margin-bottom: 8px;\n  flex-wrap: wrap;\n}\n\n.dict-pos-badge {\n  display: inline-block;\n  font-size: 11px;\n  font-weight: 700;\n  text-transform: uppercase;\n  letter-spacing: 0.05em;\n  padding: 2px 8px;\n  border-radius: 20px;\n  background: var(--pill-bg);\n  color: var(--pill-color);\n}\n\n.dict-domain-badge {\n  display: inline-block;\n  font-size: 10.5px;\n  font-weight: 600;\n  letter-spacing: 0.02em;\n  padding: 2px 7px;\n  border-radius: 12px;\n  border: 1px solid transparent;\n}\n\n/* Curated domain badge color palettes */\n.dict-domain-badge.dict-domain-computing {\n  background: rgba(99, 102, 241, 0.12);\n  color: #4f46e5;\n  border-color: rgba(99, 102, 241, 0.25);\n}\n\n.dict-domain-badge.dict-domain-science {\n  background: rgba(16, 185, 129, 0.12);\n  color: #059669;\n  border-color: rgba(16, 185, 129, 0.25);\n}\n\n.dict-domain-badge.dict-domain-mathematics {\n  background: rgba(168, 85, 247, 0.12);\n  color: #7c3aed;\n  border-color: rgba(168, 85, 247, 0.25);\n}\n\n.dict-domain-badge.dict-domain-business {\n  background: rgba(245, 158, 11, 0.12);\n  color: #d97706;\n  border-color: rgba(245, 158, 11, 0.25);\n}\n\n.dict-domain-badge.dict-domain-history {\n  background: rgba(244, 63, 94, 0.12);\n  color: #e11d48;\n  border-color: rgba(244, 63, 94, 0.25);\n}\n\n.dict-domain-badge.dict-domain-general {\n  background: rgba(100, 116, 139, 0.12);\n  color: #475569;\n  border-color: rgba(100, 116, 139, 0.25);\n}\n\n@media (prefers-color-scheme: dark) {\n  .dict-domain-badge.dict-domain-computing {\n    background: rgba(99, 102, 241, 0.22);\n    color: #a5b4fc;\n    border-color: rgba(99, 102, 241, 0.35);\n  }\n  .dict-domain-badge.dict-domain-science {\n    background: rgba(16, 185, 129, 0.22);\n    color: #6ee7b7;\n    border-color: rgba(16, 185, 129, 0.35);\n  }\n  .dict-domain-badge.dict-domain-mathematics {\n    background: rgba(168, 85, 247, 0.22);\n    color: #c084fc;\n    border-color: rgba(168, 85, 247, 0.35);\n  }\n  .dict-domain-badge.dict-domain-business {\n    background: rgba(245, 158, 11, 0.22);\n    color: #fcd34d;\n    border-color: rgba(245, 158, 11, 0.35);\n  }\n  .dict-domain-badge.dict-domain-history {\n    background: rgba(244, 63, 94, 0.22);\n    color: #fda4af;\n    border-color: rgba(244, 63, 94, 0.35);\n  }\n  .dict-domain-badge.dict-domain-general {\n    background: rgba(148, 163, 184, 0.2);\n    color: #cbd5e1;\n    border-color: rgba(148, 163, 184, 0.35);\n  }\n}\n\n.dict-card.theme-dark .dict-domain-badge.dict-domain-computing {\n  background: rgba(99, 102, 241, 0.22);\n  color: #a5b4fc;\n  border-color: rgba(99, 102, 241, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-science {\n  background: rgba(16, 185, 129, 0.22);\n  color: #6ee7b7;\n  border-color: rgba(16, 185, 129, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-mathematics {\n  background: rgba(168, 85, 247, 0.22);\n  color: #c084fc;\n  border-color: rgba(168, 85, 247, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-business {\n  background: rgba(245, 158, 11, 0.22);\n  color: #fcd34d;\n  border-color: rgba(245, 158, 11, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-history {\n  background: rgba(244, 63, 94, 0.22);\n  color: #fda4af;\n  border-color: rgba(244, 63, 94, 0.35);\n}\n.dict-card.theme-dark .dict-domain-badge.dict-domain-general {\n  background: rgba(148, 163, 184, 0.2);\n  color: #cbd5e1;\n  border-color: rgba(148, 163, 184, 0.35);\n}\n\n.dict-definitions-list {\n  margin: 0;\n  padding-left: 18px;\n}\n\n.dict-def-item {\n  font-size: 13.5px;\n  color: var(--text-primary);\n  margin-bottom: 8px;\n  line-height: 1.45;\n}\n\n.dict-def-item:last-child {\n  margin-bottom: 0;\n}\n\n.dict-example {\n  margin-top: 4px;\n  padding-left: 8px;\n  border-left: 2px solid var(--example-border);\n  font-size: 12.5px;\n  color: var(--text-muted);\n  font-style: italic;\n  line-height: 1.4;\n}\n\n.dict-synonyms {\n  margin-top: 6px;\n  font-size: 11.5px;\n  color: var(--text-muted);\n}\n\n.dict-synonyms span {\n  color: var(--accent-color);\n  font-weight: 500;\n}\n\n/* Loading State */\n.dict-loading-view {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 28px 16px;\n  gap: 12px;\n  color: var(--text-muted);\n}\n\n.dict-spinner {\n  width: 24px;\n  height: 24px;\n  border: 2.5px solid var(--border-color);\n  border-top-color: var(--accent-color);\n  border-radius: 50%;\n  animation: dictSpin 0.7s linear infinite;\n}\n\n@keyframes dictSpin {\n  to { transform: rotate(360deg); }\n}\n\n/* Empty & Error State */\n.dict-error-view {\n  padding: 24px 18px;\n  text-align: center;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 8px;\n}\n\n.dict-error-icon {\n  width: 32px;\n  height: 32px;\n  color: #f59e0b;\n  margin-bottom: 2px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.dict-error-icon svg {\n  width: 32px;\n  height: 32px;\n  display: block;\n}\n\n.dict-error-title {\n  font-size: 14px;\n  font-weight: 600;\n  color: var(--text-primary);\n}\n\n.dict-error-desc {\n  font-size: 12.5px;\n  color: var(--text-muted);\n  line-height: 1.4;\n  margin: 0;\n}\n\n/* Encyclopedic Summary Block */\n.dict-encyclopedic-block {\n  margin-bottom: 14px;\n  padding: 10px 12px;\n  background: var(--bg-surface);\n  border-radius: 8px;\n  border-left: 3px solid var(--accent-color);\n}\n\n.dict-encyclopedic-text {\n  font-size: 13px;\n  color: var(--text-primary);\n  line-height: 1.45;\n  margin: 0 0 6px 0;\n}\n\n.dict-reference-link {\n  font-size: 11.5px;\n  color: var(--accent-color);\n  text-decoration: none;\n  font-weight: 500;\n  display: inline-flex;\n  align-items: center;\n  gap: 3px;\n  transition: opacity 0.15s ease;\n}\n\n.dict-reference-link:hover {\n  text-decoration: underline;\n  opacity: 0.85;\n}\n\n/* Stacked Disambiguation Section Divider */\n.dict-stacked-divider {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  margin: 16px 0 12px 0;\n}\n\n.dict-divider-line {\n  flex: 1;\n  height: 1px;\n  background: var(--border-color);\n}\n\n.dict-divider-label {\n  font-size: 11px;\n  font-weight: 600;\n  text-transform: uppercase;\n  letter-spacing: 0.05em;\n  color: var(--text-muted);\n  white-space: nowrap;\n}\n\n/* Floating Dictionary Trigger Icon */\n.dict-floating-icon-host {\n  all: initial;\n  position: fixed;\n  z-index: 2147483646;\n  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;\n  pointer-events: auto;\n}\n\n.dict-floating-btn {\n  width: 28px;\n  height: 28px;\n  border-radius: 50%;\n  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);\n  color: #ffffff;\n  border: none;\n  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  cursor: pointer;\n  padding: 0;\n  margin: 0;\n  animation: dictFloatingPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;\n  transition: transform 0.15s ease, box-shadow 0.15s ease;\n}\n\n.dict-floating-btn:hover {\n  transform: scale(1.12);\n  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5);\n}\n\n.dict-floating-btn:active {\n  transform: scale(0.95);\n}\n\n.dict-floating-btn svg {\n  width: 15px;\n  height: 15px;\n  pointer-events: none;\n}\n\n@keyframes dictFloatingPop {\n  from {\n    opacity: 0;\n    transform: scale(0.7);\n  }\n  to {\n    opacity: 1;\n    transform: scale(1);\n  }\n}\n\n';
 
   // src/content/content.js
   var popupView = new PopupView();
   popupView.setStyles(POPUP_STYLES);
+  var floatingIcon = new FloatingIcon();
+  floatingIcon.setStyles(POPUP_STYLES);
   var activeConfig = {
     modifierKey: "none",
     enabled: true,
-    theme: "auto"
+    theme: "auto",
+    multiWordEnabled: true,
+    domainBadgesEnabled: true
   };
   async function syncConfig() {
     try {
@@ -1052,6 +908,35 @@
     }
     return { status: "error", errorMessage: "Extension runtime not available." };
   }
+  async function performLookup(sanitized, anchorRect) {
+    const word = sanitized.cleanTerm;
+    const coords = calculatePopupPosition({
+      anchorRect,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    });
+    popupView.showLoading(word, coords, activeConfig.theme);
+    try {
+      const response = await sendBackgroundMessage({
+        action: "LOOKUP_DOMAIN_TERM",
+        payload: {
+          term: sanitized.cleanTerm,
+          rawText: sanitized.raw,
+          isUppercase: sanitized.isUppercase,
+          wordCount: sanitized.wordCount
+        }
+      });
+      if (!response || response.status !== "success") {
+        const msg = response?.errorMessage || `No definitions found for "${word}". Check spelling.`;
+        popupView.showError(msg, word, coords, activeConfig.theme);
+        return;
+      }
+      const entry = response.entry || response.data;
+      popupView.showResult(entry, coords, activeConfig.theme, activeConfig);
+    } catch (err) {
+      popupView.showError("Unable to connect to dictionary service. Please check your internet connection.", word, coords, activeConfig.theme);
+    }
+  }
   document.addEventListener("dblclick", async (event) => {
     if (!activeConfig.enabled) {
       return;
@@ -1064,8 +949,8 @@
       return;
     }
     const rawText = selection.toString();
-    const { isValid, word } = sanitizeWord(rawText);
-    if (!isValid || !word) {
+    const sanitized = sanitizeDomainTerm(rawText);
+    if (!sanitized.isValid || !sanitized.cleanTerm) {
       return;
     }
     const range = selection.getRangeAt(0);
@@ -1073,25 +958,50 @@
     if (anchorRect.width === 0 && anchorRect.height === 0) {
       return;
     }
-    const coords = calculatePopupPosition({
-      anchorRect,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight
-    });
-    popupView.showLoading(word, coords, activeConfig.theme);
-    try {
-      const response = await sendBackgroundMessage({
-        action: "LOOKUP_WORD",
-        word
-      });
-      if (!response || response.status !== "success") {
-        const msg = response?.errorMessage || `No definitions found for "${word}". Check spelling.`;
-        popupView.showError(msg, word, coords, activeConfig.theme);
+    floatingIcon.dismiss();
+    await performLookup(sanitized, anchorRect);
+  });
+  document.addEventListener("mouseup", (event) => {
+    if (!activeConfig.enabled || !activeConfig.multiWordEnabled) {
+      return;
+    }
+    if (event.target && event.target.id && String(event.target.id).startsWith("eng-dict-")) {
+      return;
+    }
+    setTimeout(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        floatingIcon.dismiss();
         return;
       }
-      popupView.showResult(response.entry, coords, activeConfig.theme);
-    } catch (err) {
-      popupView.showError("Unable to connect to dictionary service. Please check your internet connection.", word, coords, activeConfig.theme);
-    }
+      const rawText = selection.toString();
+      const sanitized = sanitizeDomainTerm(rawText);
+      if (!sanitized.isValid || sanitized.wordCount < 2 || sanitized.wordCount > 4) {
+        floatingIcon.dismiss();
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      const anchorRect = range.getBoundingClientRect();
+      if (anchorRect.width === 0 && anchorRect.height === 0) {
+        floatingIcon.dismiss();
+        return;
+      }
+      const hasModifier = activeConfig.modifierKey !== "none" && matchesModifier(event, activeConfig.modifierKey);
+      if (hasModifier) {
+        floatingIcon.dismiss();
+        performLookup(sanitized, anchorRect);
+        return;
+      }
+      let top = anchorRect.top - 34;
+      if (top < 10) {
+        top = anchorRect.bottom + 6;
+      }
+      let left = Math.min(anchorRect.right + 4, window.innerWidth - 36);
+      top = Math.max(8, Math.min(top, window.innerHeight - 36));
+      left = Math.max(8, Math.min(left, window.innerWidth - 36));
+      floatingIcon.show({ top, left }, () => {
+        performLookup(sanitized, anchorRect);
+      });
+    }, 10);
   });
 })();

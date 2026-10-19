@@ -11,14 +11,27 @@ describe('storage and trigger configuration', () => {
     expect(DEFAULT_CONFIG.modifierKey).toBe('none');
     expect(DEFAULT_CONFIG.enabled).toBe(true);
     expect(DEFAULT_CONFIG.theme).toBe('auto');
+    expect(DEFAULT_CONFIG.multiWordEnabled).toBe(true);
+    expect(DEFAULT_CONFIG.domainBadgesEnabled).toBe(true);
+    expect(DEFAULT_CONFIG.schemaVersion).toBe(2);
   });
 
   it('validates and accepts valid configuration values', () => {
     for (const key of VALID_MODIFIER_KEYS) {
-      const valid = validateConfig({ modifierKey: key, enabled: false, theme: 'dark' });
+      const valid = validateConfig({
+        modifierKey: key,
+        enabled: false,
+        theme: 'dark',
+        multiWordEnabled: false,
+        domainBadgesEnabled: false,
+        schemaVersion: 2
+      });
       expect(valid.modifierKey).toBe(key);
       expect(valid.enabled).toBe(false);
       expect(valid.theme).toBe('dark');
+      expect(valid.multiWordEnabled).toBe(false);
+      expect(valid.domainBadgesEnabled).toBe(false);
+      expect(valid.schemaVersion).toBe(2);
     }
   });
 
@@ -26,12 +39,18 @@ describe('storage and trigger configuration', () => {
     const fallback = validateConfig({
       modifierKey: 'invalid_key',
       enabled: 'not_a_boolean',
-      theme: 'neon_pink'
+      theme: 'neon_pink',
+      multiWordEnabled: 'not_bool',
+      domainBadgesEnabled: null,
+      schemaVersion: 'string_version'
     });
 
     expect(fallback.modifierKey).toBe('none');
     expect(fallback.enabled).toBe(true);
     expect(fallback.theme).toBe('auto');
+    expect(fallback.multiWordEnabled).toBe(true);
+    expect(fallback.domainBadgesEnabled).toBe(true);
+    expect(fallback.schemaVersion).toBe(2);
   });
 
   it('matchesModifier returns true for "none" regardless of keys pressed', () => {

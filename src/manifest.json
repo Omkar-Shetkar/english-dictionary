@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "English Dictionary - Double-Click Lookup",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Double-click any word to view its pronunciation, definitions, and usage examples instantly.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -41,7 +41,8 @@
   ],
   "host_permissions": [
     "https://api.dictionaryapi.dev/*",
-    "https://en.wiktionary.org/*"
+    "https://en.wiktionary.org/*",
+    "https://en.wikipedia.org/*"
   ],
   "browser_specific_settings": {
     "gecko": {
