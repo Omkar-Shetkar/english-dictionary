@@ -5,6 +5,15 @@
 **Status**: Draft  
 **Input**: User description: "Currently, this extension is supported only for Firefox. We want to extend support to Google chrome as well. Also, update documentation to help the developer to deploy the extension in Google chrome extension store."
 
+## Clarifications
+
+### Session 2026-10-21
+
+- Q: How should the build system structure artifacts and manifests for Google Chrome and Mozilla Firefox? → A: Dedicated build targets — Generate distinct `dist/chrome` and `dist/firefox` folders with browser-specific manifests and packaging scripts (`package:chrome`, `package:firefox`).
+- Q: Should the repository include ready-to-upload store visual assets (icons, screenshots, promotional banners) for the Chrome Web Store listing? → A: Include ready-to-upload assets — Provide pre-sized store icons (128x128), UI screenshot captures (1280x800), and promotional banner assets directly in the project assets folder.
+- Q: What scope should the Chrome Web Store deployment guide cover regarding manual vs automated CI/CD publishing? → A: Manual dashboard submission as primary guide, with an optional CI/CD GitHub Actions workflow template documented for automated releases.
+- Q: Should the project documentation and packaging explicitly cover other Chromium stores (e.g., Microsoft Edge Add-ons), or focus primarily on Google Chrome and the Chrome Web Store? → A: Focus primarily on Google Chrome and Chrome Web Store, noting seamless compatibility with other Chromium desktop browsers (Edge, Brave).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Instant Word Lookup in Google Chrome (Priority: P1)
@@ -51,40 +60,41 @@ As an existing Mozilla Firefox user, I want the extension to continue functionin
 
 1. **Given** the extension codebase updated with Chrome support, **When** running automated unit and integration test suites, **Then** 100% of existing tests pass without regressions.
 2. **Given** the extension loaded in Mozilla Firefox, **When** performing word lookups, playing pronunciation audio, and changing options, **Then** all features behave identically to previous Firefox releases.
-3. **Given** the developer running Firefox build and package scripts, **When** the build command executes, **Then** a valid Firefox addon archive is produced that passes `web-ext lint` with zero errors.
+3. **Given** the developer running Firefox build and package scripts (`npm run build:firefox` / `npm run package:firefox`), **When** the build command executes, **Then** a valid Firefox addon archive is produced in `dist/firefox` that passes `web-ext lint` with zero errors.
 
 ---
 
-### User Story 4 - Developer Workflow for Local Chrome Development & Packaging (Priority: P4)
+### User Story 4 - Developer Workflow for Dedicated Multi-Target Packaging (Priority: P4)
 
-As an extension developer, I want clear commands and build configurations to run and package the extension for Google Chrome alongside Firefox, so that I can develop, debug, and produce store-ready distribution archives for both browsers with minimal effort.
+As an extension developer, I want dedicated build targets and commands generating distinct `dist/chrome` and `dist/firefox` distributions, so that I can develop, debug, and produce store-ready distribution archives for both browsers with zero cross-platform manifest conflicts.
 
-**Why this priority**: Developers need a frictionless local workflow to verify changes in Chrome and generate compliant distribution packages for deployment.
+**Why this priority**: Providing isolated build outputs eliminates manifest key collisions (such as service worker vs background scripts) and guarantees clean, browser-specific packaging without manual file edits.
 
-**Independent Test**: Execute the local Chrome build command, verify the output artifact or directory structure, and load it into Google Chrome via `chrome://extensions` in developer mode without manifest warnings.
+**Independent Test**: Execute `npm run build:chrome` and `npm run package:chrome`, verify `dist/chrome` contains a compliant Chrome Manifest V3 with service worker, and load the unpacked directory in `chrome://extensions` without warnings.
 
 **Acceptance Scenarios**:
 
-1. **Given** a developer in the project workspace, **When** executing the Chrome build script, **Then** the project bundles all scripts and creates a compliant distribution artifact ready for Chrome loading and packaging.
-2. **Given** a developer loading the unpacked extension in `chrome://extensions`, **When** Developer Mode is active and "Load unpacked" is selected, **Then** the extension loads without manifest schema warnings or runtime initialization errors.
-3. **Given** a developer executing packaging commands, **When** the package script completes, **Then** distinct, properly structured zip archives are produced for Chrome and Firefox store submissions.
+1. **Given** a developer in the project workspace, **When** executing `npm run build:chrome`, **Then** the project bundles all scripts and creates `dist/chrome` containing a compliant Manifest V3 configured with `background.service_worker`.
+2. **Given** a developer loading the unpacked extension in `chrome://extensions`, **When** Developer Mode is active and "Load unpacked" selects `dist/chrome`, **Then** the extension loads without manifest schema warnings or runtime initialization errors.
+3. **Given** a developer executing `npm run package:chrome` and `npm run package:firefox`, **When** the commands complete, **Then** distinct, properly structured zip archives are produced for Chrome and Firefox store submissions.
 
 ---
 
-### User Story 5 - Comprehensive Chrome Web Store Deployment Guide (Priority: P5)
+### User Story 5 - Comprehensive Chrome Web Store Deployment Guide & Assets (Priority: P5)
 
-As an extension developer or maintainer, I want a complete, step-by-step deployment guide in the project documentation detailing how to register for a Chrome Developer account, prepare store listings, package the extension, disclose privacy practices, and submit the extension to the Google Chrome Web Store, so that I can publish updates reliably and pass Google store review without delays.
+As an extension developer or maintainer, I want a complete, step-by-step deployment guide in the project documentation along with ready-to-upload store visual assets (store icon, screenshots, promo banner) in the repository, so that I can publish updates reliably and pass Google store review without delays.
 
-**Why this priority**: Fulfills the user requirement for developer documentation, eliminating guesswork around store requirements, asset specifications, and compliance policies.
+**Why this priority**: Fulfills the user requirement for developer documentation, providing ready assets and eliminating guesswork around store requirements, asset specifications, and compliance policies.
 
-**Independent Test**: Review the deployment guide in the project documentation and verify that every phase—from initial developer account registration to store asset requirements, permission justifications, package upload, and review timelines—is clearly described with actionable steps.
+**Independent Test**: Review the deployment guide in `README.md` and verify that every phase—from developer account registration to store asset requirements, permission justifications, package upload, review timelines, and optional CI/CD release workflow—is clearly described with actionable steps and verified asset files in the project.
 
 **Acceptance Scenarios**:
 
 1. **Given** a developer preparing to deploy the extension to the Chrome Web Store, **When** reviewing the project documentation, **Then** the guide clearly outlines developer account registration prerequisites, including the one-time registration fee and Google Developer Dashboard navigation.
-2. **Given** a developer preparing store listing materials, **When** consulting the deployment guide, **Then** exact specifications for required graphic assets (store icon, screenshots, promotional tiles), category selections, and store descriptions are provided.
+2. **Given** a developer preparing store listing materials, **When** consulting the deployment guide, **Then** ready-to-upload store graphics (128x128 store icon, 1280x800 screenshots, 440x280 promo banner) located in the project repository are referenced with clear usage instructions.
 3. **Given** a developer completing the Chrome Web Store privacy tab, **When** following the guide, **Then** precise explanations and justifications for requested permissions (storage, external API hosts) and data privacy declarations (single purpose, zero user data collection) are provided.
-4. **Given** a developer submitting an updated version, **When** following the guide, **Then** version numbering rules, release packaging commands, and post-submission review expectations are clearly documented.
+4. **Given** a developer submitting an updated version, **When** following the guide, **Then** version numbering rules, release packaging commands (`npm run package:chrome`), and post-submission review expectations are clearly documented.
+5. **Given** a developer interested in continuous delivery, **When** reading the deployment documentation, **Then** an optional appendix details a GitHub Actions CI/CD template using Chrome Web Store API credentials for automated publishing.
 
 ---
 
@@ -92,7 +102,7 @@ As an extension developer or maintainer, I want a complete, step-by-step deploym
 
 - **Message Passing Protocol**: Communication between content scripts and background services must accommodate differing browser runtime behaviors without dropped messages or unresolved promises.
 - **Background Service Lifecycle**: In Google Chrome, background tasks run under a service worker model that terminates when idle; background event handlers and message dispatchers must initialize reliably on demand without state corruption.
-- **Manifest Schema Discrepancies**: Chrome rejects certain Firefox-specific manifest keys (such as `browser_specific_settings.gecko` and `background.scripts`), while Firefox requires specific settings for addon signing; the build/packaging mechanism must ensure both browsers receive valid manifests.
+- **Manifest Schema Discrepancies**: Chrome rejects certain Firefox-specific manifest keys (such as `browser_specific_settings.gecko` and `background.scripts`), while Firefox requires specific settings for addon signing; dedicated `dist/chrome` and `dist/firefox` build outputs guarantee each browser receives a tailored manifest.
 - **Cross-Origin API Requests**: Fetching definitions, phonetics, and audio from external dictionary services must comply with host permission policies across both browsers without triggering CORS blocks.
 - **Audio Autoplay Policies**: Chrome enforces strict user gesture policies before allowing audio playback; pronunciation audio must only trigger directly upon user interaction (such as clicking the speaker icon).
 - **Viewport Boundary and Display Scaling**: Floating popup repositioning logic must accurately calculate viewport coordinates on Chrome across diverse display zoom levels and operating systems.
@@ -102,7 +112,7 @@ As an extension developer or maintainer, I want a complete, step-by-step deploym
 
 ### Functional Requirements
 
-- **FR-001**: System MUST run seamlessly on modern stable versions of Google Chrome (desktop) and compatible Chromium browsers.
+- **FR-001**: System MUST run seamlessly on modern stable versions of Google Chrome (desktop) and compatible Chromium browsers (e.g., Microsoft Edge, Brave).
 - **FR-002**: System MUST detect user double-click events on text words within web pages in Google Chrome and display a floating dictionary popup adjacent to the selected word.
 - **FR-003**: System MUST display phonetic pronunciation notation, word part(s) of speech, primary definition(s), and usage examples within the popup on Google Chrome.
 - **FR-004**: System MUST provide an interactive audio control to play spoken word pronunciation in Google Chrome when audio recordings are available.
@@ -117,22 +127,26 @@ As an extension developer or maintainer, I want a complete, step-by-step deploym
 - **FR-009**: System MUST support light mode, dark mode, and automatic system theme detection within the popup on Google Chrome.
 - **FR-010**: System MUST maintain strict privacy and ephemeral operation on Google Chrome: zero search history, zero telemetry, and zero user data collection.
 - **FR-011**: System MUST maintain full backward compatibility and zero regressions for Mozilla Firefox desktop.
-- **FR-012**: System MUST provide a build command that generates clean, review-ready distribution artifacts for Google Chrome (Manifest V3 compliant).
+- **FR-012**: System MUST provide dedicated build targets generating distinct output directories (`dist/chrome` and `dist/firefox`) and packaging commands (`npm run package:chrome` and `npm run package:firefox`) with browser-specific compliant manifests (Chrome service worker vs Firefox background scripts).
 - **FR-013**: System MUST provide a build/test command that validates extension packages against store linting and manifest guidelines.
 - **FR-014**: Project documentation MUST provide step-by-step instructions for loading and testing the extension locally in Google Chrome Developer Mode.
 - **FR-015**: Project documentation MUST provide a comprehensive Chrome Web Store deployment guide detailing:
   - Developer account creation and dashboard access
-  - Packaging the extension for Chrome Web Store upload
+  - Packaging the extension via `npm run package:chrome`
   - Listing metadata requirements (title, summary, descriptions, categories)
-  - Graphic asset guidelines and dimensions (128x128 store icon, 1280x800 screenshots, promotional tiles)
+  - Graphic asset guidelines utilizing ready-to-upload assets from the repository
   - Privacy practice declarations and permissions justification (storage, dictionary API hosts)
   - Submission, review process, and update publishing workflows
+  - An optional CI/CD release appendix documenting a GitHub Actions workflow template
+  - Compatibility notes for other Chromium desktop browsers
+- **FR-016**: The project repository MUST include ready-to-upload Chrome Web Store visual assets in a dedicated store assets directory, including a 128x128 store icon, 1280x800 UI screenshots, and a 440x280 promotional tile.
 
 ### Key Entities *(include if feature involves data)*
 
 - **ExtensionPackage**: The packaged distribution archive (.zip) containing all compiled scripts, styles, icons, and browser-compliant `manifest.json` formatted to pass store review for the respective target browser (Chrome or Firefox).
 - **StoreListingMetadata**: Complete publication metadata for the Chrome Web Store, including extension name, single-purpose summary, detailed description, categorized tags, support links, privacy policy link, and required graphic assets.
-- **BrowserTarget**: The designated browser environment (`chrome` or `firefox`), governing manifest schema requirements (e.g., service worker vs background scripts) and platform-specific packaging configurations.
+- **StoreAssetBundle**: Collection of ready-to-upload graphical assets (128x128 store icon, 1280x800 screenshots, 440x280 promotional tile) stored in the project assets folder.
+- **BrowserTarget**: The designated browser environment (`chrome` or `firefox`), governing manifest schema requirements (service worker for Chrome vs background scripts and gecko settings for Firefox) and dedicated build directories (`dist/chrome`, `dist/firefox`).
 - **TriggerConfiguration**: User preferences (modifier key, theme, multi-word selection, domain term badges) synchronized and persisted via browser storage.
 
 ## Success Criteria *(mandatory)*
@@ -140,17 +154,18 @@ As an extension developer or maintainer, I want a complete, step-by-step deploym
 ### Measurable Outcomes
 
 - **SC-001**: 100% of dictionary capabilities (word lookup, phonetic transcription, definitions, usage examples, audio pronunciation, theme selection, modifier key triggers) function identically on Google Chrome and Mozilla Firefox.
-- **SC-002**: Zero manifest warnings or schema errors when loading the unpacked extension in Google Chrome developer mode (`chrome://extensions`).
+- **SC-002**: Zero manifest warnings or schema errors when loading the unpacked `dist/chrome` extension in Google Chrome developer mode (`chrome://extensions`).
 - **SC-003**: 100% of existing automated test suites pass with zero regressions across both platforms.
-- **SC-004**: Developer can build and package the production Chrome extension in under 15 seconds using a single command line invocation.
+- **SC-004**: Developer can build and package the production Chrome extension in under 15 seconds using `npm run package:chrome`.
 - **SC-005**: An extension developer with no prior Chrome Web Store publishing experience can follow the deployment guide to prepare a submission-ready package, complete privacy disclosures, and submit the listing in under 30 minutes.
 - **SC-006**: Generated distribution packages for both Chrome and Firefox pass respective store validation criteria with zero fatal errors.
 
 ## Assumptions
 
-- **Target Browser Scope**: Google Chrome desktop (modern stable releases, Manifest V3) and compatible Chromium-based browsers, alongside existing support for Mozilla Firefox 112+ desktop.
-- **Dual-Target Packaging Strategy**: The build system will accommodate differences between browser manifest formats (e.g., Chrome service worker vs Firefox background scripts/gecko settings) by producing dedicated, store-ready build outputs or a validated unified structure.
-- **Deployment Model**: Documentation focuses on manual publication via the Google Chrome Web Store Developer Dashboard (matching the existing Firefox AMO guide in `README.md`). Automated CI/CD publishing via API can be added in a future enhancement.
+- **Target Browser Scope**: Google Chrome desktop (modern stable releases, Manifest V3) and compatible Chromium-based desktop browsers (e.g., Edge, Brave), alongside existing support for Mozilla Firefox 112+ desktop.
+- **Dedicated Dual-Target Architecture**: The build system generates dedicated distribution directories (`dist/chrome` and `dist/firefox`) with browser-specific manifests and packaging commands, ensuring clean separation and avoiding manifest conflicts.
+- **Store Assets**: The repository includes pre-sized, ready-to-upload visual assets (128x128 icon, 1280x800 screenshots, 440x280 promo banner) so developers do not need to create graphics from scratch.
+- **Deployment Model**: Documentation focuses on manual publication via the Google Chrome Web Store Developer Dashboard as the primary workflow, with an optional GitHub Actions CI/CD template provided in an appendix for teams desiring automated continuous deployment.
 - **Developer Account**: The developer possesses or will create a Google Chrome Web Store Developer account (requiring a standard one-time $5 USD registration fee paid to Google).
 - **Privacy Disclosures**: Because the extension is strictly ephemeral, collects no personal data, and performs lookups solely on user double-click, privacy disclosures on the Chrome Web Store are straightforward with zero tracking declarations.
 - **Dictionary Data Service**: The extension continues to utilize the public Free Dictionary API (`api.dictionaryapi.dev`) and supplementary open sources without requiring user API authentication on both Chrome and Firefox.

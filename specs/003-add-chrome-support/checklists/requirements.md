@@ -31,6 +31,10 @@
 
 ## Notes
 
-- All 16 validation criteria passed on initial evaluation.
-- No unresolved `[NEEDS CLARIFICATION]` markers exist; standard assumptions around manual dashboard deployment and dual-target packaging strategy have been codified in the Assumptions section.
-- Ready for `/speckit.clarify` or `/speckit.plan`.
+- All 16 validation criteria passed.
+- 4 targeted clarifications completed in session 2026-10-21:
+  1. Dedicated build targets (`dist/chrome` and `dist/firefox`) and packaging commands (`package:chrome`, `package:firefox`).
+  2. Ready-to-upload store visual assets included directly in the repository (`assets/store/`).
+  3. Manual Chrome Developer Dashboard guide as primary workflow, with optional GitHub Actions CI/CD template.
+  4. Focus primarily on Google Chrome and Chrome Web Store, with compatibility note for Chromium browsers.
+- Specification is ready for `/speckit.plan`.
