@@ -48,7 +48,7 @@ body {
   color: var(--text-main);
   line-height: 1.5;
   padding: 24px 16px;
-  min-height: 100vh;
+  min-width: 460px;
   display: flex;
   justify-content: center;
 }
