@@ -30,6 +30,13 @@ export function calculatePopupPosition({
     return { top: VIEWPORT_MARGIN, left: VIEWPORT_MARGIN, placement: 'bottom' };
   }
 
+  // Handle collapsed / zero-dimension selection (e.g. context menu click in PDF viewers)
+  if (anchorRect.width === 0 && anchorRect.height === 0) {
+    const centeredLeft = Math.max(VIEWPORT_MARGIN, Math.round((viewportWidth - popupWidth) / 2));
+    const fallbackTop = Math.min(80, Math.max(VIEWPORT_MARGIN, Math.round((viewportHeight - popupHeight) / 3)));
+    return { top: fallbackTop, left: centeredLeft, placement: 'bottom' };
+  }
+
   // Horizontal calculation: align with word left, clamp to viewport edges
   let left = anchorRect.left;
 

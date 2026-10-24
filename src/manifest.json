@@ -18,6 +18,8 @@
       "matches": [
         "<all_urls>"
       ],
+      "all_frames": true,
+      "match_about_blank": true,
       "js": [
         "content/content.bundle.js"
       ],
@@ -37,7 +39,8 @@
     "open_in_tab": false
   },
   "permissions": [
-    "storage"
+    "storage",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://api.dictionaryapi.dev/*",

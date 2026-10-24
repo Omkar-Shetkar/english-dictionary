@@ -133,4 +133,32 @@ describe('sanitizeDomainTerm utility', () => {
     expect(sanitizeDomainTerm('!!!').isValid).toBe(false);
     expect(sanitizeDomainTerm('').isValid).toBe(false);
   });
+
+  it('de-hyphenates words split across PDF line breaks', () => {
+    const resWord = sanitizeWord('inter-\nnational');
+    expect(resWord.isValid).toBe(true);
+    expect(resWord.word).toBe('international');
+
+    const resWindowsNewline = sanitizeWord('trans-\r\nportation');
+    expect(resWindowsNewline.isValid).toBe(true);
+    expect(resWindowsNewline.word).toBe('transportation');
+
+    const resDomain = sanitizeDomainTerm('com-\nputing');
+    expect(resDomain.isValid).toBe(true);
+    expect(resDomain.cleanTerm).toBe('computing');
+
+    const resPhrase = sanitizeDomainTerm('machine\nlearning');
+    expect(resPhrase.isValid).toBe(true);
+    expect(resPhrase.cleanTerm).toBe('machine learning');
+  });
+
+  it('removes embedded soft hyphens common in PDF text layers', () => {
+    const resSoftHyphen = sanitizeWord('dic\u00ADtion\u00ADary');
+    expect(resSoftHyphen.isValid).toBe(true);
+    expect(resSoftHyphen.word).toBe('dictionary');
+
+    const resDomainSoft = sanitizeDomainTerm('poly\u00ADmorphism');
+    expect(resDomainSoft.isValid).toBe(true);
+    expect(resDomainSoft.cleanTerm).toBe('polymorphism');
+  });
 });

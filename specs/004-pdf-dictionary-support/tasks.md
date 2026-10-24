@@ -15,10 +15,10 @@
 
 **Purpose**: Update extension manifests with `contextMenus` permission and enable content script execution across sub-frames and embeds.
 
-- [ ] T001 Update Chrome Manifest V3 with `contextMenus` permission and `all_frames: true`, `match_about_blank: true` in `src/manifest.chrome.json`
-- [ ] T002 [P] Update Firefox Manifest V3 with `contextMenus` permission and `all_frames: true`, `match_about_blank: true` in `src/manifest.firefox.json`
-- [ ] T003 [P] Update base manifest template with `contextMenus` permission and `all_frames: true`, `match_about_blank: true` in `src/manifest.json`
-- [ ] T004 [P] Update manifest validation tests in `tests/unit/manifest.test.js` to assert `contextMenus` permission and `all_frames: true` in all manifest configurations
+- [X] T001 Update Chrome Manifest V3 with `contextMenus` permission and `all_frames: true`, `match_about_blank: true` in `src/manifest.chrome.json`
+- [X] T002 [P] Update Firefox Manifest V3 with `contextMenus` permission and `all_frames: true`, `match_about_blank: true` in `src/manifest.firefox.json`
+- [X] T003 [P] Update base manifest template with `contextMenus` permission and `all_frames: true`, `match_about_blank: true` in `src/manifest.json`
+- [X] T004 [P] Update manifest validation tests in `tests/unit/manifest.test.js` to assert `contextMenus` permission and `all_frames: true` in all manifest configurations
 
 ---
 
@@ -28,10 +28,10 @@
 
 **⚠️ CRITICAL**: Must complete before user story implementations begin.
 
-- [ ] T005 Enhance `sanitizeDomainTerm` and `sanitizeWord` in `src/common/sanitize.js` to de-hyphenate line-break splits and strip soft hyphens (`\u00AD`) from PDF text extracts
-- [ ] T006 [P] Add unit test cases for PDF line-break de-hyphenation and soft hyphen removal in `tests/unit/sanitize.test.js`
-- [ ] T007 Enhance `calculatePopupPosition` in `src/common/position.js` to support fallback viewport centering when `anchorRect` has zero width/height
-- [ ] T008 [P] Add unit test cases for zero-dimension and missing `anchorRect` fallback positioning in `tests/unit/position.test.js`
+- [X] T005 Enhance `sanitizeDomainTerm` and `sanitizeWord` in `src/common/sanitize.js` to de-hyphenate line-break splits and strip soft hyphens (`\u00AD`) from PDF text extracts
+- [X] T006 [P] Add unit test cases for PDF line-break de-hyphenation and soft hyphen removal in `tests/unit/sanitize.test.js`
+- [X] T007 Enhance `calculatePopupPosition` in `src/common/position.js` to support fallback viewport centering when `anchorRect` has zero width/height
+- [X] T008 [P] Add unit test cases for zero-dimension and missing `anchorRect` fallback positioning in `tests/unit/position.test.js`
 
 **Checkpoint**: Foundational sanitization and positioning helpers ready — user story implementations can proceed.
 

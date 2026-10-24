@@ -35,6 +35,9 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
 
     // Permissions and actions
     expect(chrome.permissions).toContain('storage');
+    expect(chrome.permissions).toContain('contextMenus');
+    expect(chrome.content_scripts?.[0]?.all_frames).toBe(true);
+    expect(chrome.content_scripts?.[0]?.match_about_blank).toBe(true);
     expect(chrome.host_permissions).toContain('https://api.dictionaryapi.dev/*');
     expect(chrome.host_permissions).toContain('https://en.wiktionary.org/*');
     expect(chrome.host_permissions).toContain('https://en.wikipedia.org/*');
@@ -55,6 +58,9 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
 
     // Permissions and actions
     expect(firefox.permissions).toContain('storage');
+    expect(firefox.permissions).toContain('contextMenus');
+    expect(firefox.content_scripts?.[0]?.all_frames).toBe(true);
+    expect(firefox.content_scripts?.[0]?.match_about_blank).toBe(true);
     expect(firefox.host_permissions).toContain('https://api.dictionaryapi.dev/*');
     expect(firefox.action?.default_popup).toBe('options/options.html');
   });
