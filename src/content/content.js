@@ -116,9 +116,43 @@ async function performLookup(sanitized, anchorRect) {
 }
 
 /**
- * Main double-click event listener for single-word lookup.
+ * Resolves the best anchor rect for selection in standard DOM and PDF text layers.
+ * @param {Selection} selection
+ * @param {MouseEvent} [event]
+ * @returns {DOMRect|object}
  */
-document.addEventListener('dblclick', async (event) => {
+function resolveAnchorRect(selection, event) {
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 || rect.height > 0) {
+      return rect;
+    }
+    const clientRects = range.getClientRects();
+    if (clientRects.length > 0 && (clientRects[0].width > 0 || clientRects[0].height > 0)) {
+      return clientRects[0];
+    }
+  }
+
+  if (event && event.target && typeof event.target.getBoundingClientRect === 'function') {
+    const targetRect = event.target.getBoundingClientRect();
+    if (targetRect.width > 0 && targetRect.height > 0) {
+      return targetRect;
+    }
+  }
+
+  if (event && typeof event.clientX === 'number') {
+    return { top: event.clientY, bottom: event.clientY, left: event.clientX, right: event.clientX, width: 0, height: 0 };
+  }
+
+  return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+}
+
+/**
+ * Main double-click event listener for single-word lookup.
+ * Includes settlement delay for PDF.js text layer selection models.
+ */
+document.addEventListener('dblclick', (event) => {
   if (!activeConfig.enabled) {
     return;
   }
@@ -127,27 +161,25 @@ document.addEventListener('dblclick', async (event) => {
     return;
   }
 
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) {
-    return;
-  }
+  // Brief delay to allow PDF text layer selection model to settle
+  setTimeout(async () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return;
+    }
 
-  const rawText = selection.toString();
-  const sanitized = sanitizeDomainTerm(rawText);
+    const rawText = selection.toString();
+    const sanitized = sanitizeDomainTerm(rawText);
 
-  if (!sanitized.isValid || !sanitized.cleanTerm) {
-    return;
-  }
+    if (!sanitized.isValid || !sanitized.cleanTerm) {
+      return;
+    }
 
-  const range = selection.getRangeAt(0);
-  const anchorRect = range.getBoundingClientRect();
+    const anchorRect = resolveAnchorRect(selection, event);
 
-  if (anchorRect.width === 0 && anchorRect.height === 0) {
-    return;
-  }
-
-  floatingIcon.dismiss();
-  await performLookup(sanitized, anchorRect);
+    floatingIcon.dismiss();
+    await performLookup(sanitized, anchorRect);
+  }, 15);
 });
 
 /**
@@ -179,9 +211,8 @@ document.addEventListener('mouseup', (event) => {
       return;
     }
 
-    const range = selection.getRangeAt(0);
-    const anchorRect = range.getBoundingClientRect();
-    if (anchorRect.width === 0 && anchorRect.height === 0) {
+    const anchorRect = resolveAnchorRect(selection, event);
+    if (anchorRect.width === 0 && anchorRect.height === 0 && !anchorRect.left) {
       floatingIcon.dismiss();
       return;
     }
@@ -206,6 +237,29 @@ document.addEventListener('mouseup', (event) => {
     floatingIcon.show({ top, left }, () => {
       performLookup(sanitized, anchorRect);
     });
-  }, 10);
+  }, 15);
 });
+
+// Runtime message listener for context menu lookups
+const runtimeMsgApi = typeof browser !== 'undefined' ? browser.runtime : (typeof chrome !== 'undefined' ? chrome.runtime : null);
+if (runtimeMsgApi && runtimeMsgApi.onMessage) {
+  runtimeMsgApi.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.action === 'TRIGGER_SELECTION_LOOKUP') {
+      const termToQuery = message.payload?.term || (typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString() : '');
+      const sanitized = sanitizeDomainTerm(termToQuery);
+
+      if (!sanitized.isValid || !sanitized.cleanTerm) {
+        if (sendResponse) sendResponse({ status: 'ignored', reason: 'Invalid or empty term' });
+        return;
+      }
+
+      const selection = typeof window !== 'undefined' && window.getSelection ? window.getSelection() : null;
+      const anchorRect = resolveAnchorRect(selection);
+
+      floatingIcon.dismiss();
+      performLookup(sanitized, anchorRect);
+      if (sendResponse) sendResponse({ status: 'success' });
+    }
+  });
+}
 

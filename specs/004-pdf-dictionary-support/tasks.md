@@ -45,9 +45,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Update `src/content/content.js` to handle PDF document DOM structures and ensure text selection settlement in PDF.js text layers on double-click
-- [ ] T010 [P] [US1] Verify and ensure Shadow DOM styles in `src/content/popup-view.js` maintain high z-index and zero visual clipping over native PDF viewer canvas layers
-- [ ] T011 [US1] Verify dismiss triggers (Escape key, click outside, scroll) in `src/content/popup-view.js` dismiss popups cleanly without disrupting PDF navigation
+- [X] T009 [US1] Update `src/content/content.js` to handle PDF document DOM structures and ensure text selection settlement in PDF.js text layers on double-click
+- [X] T010 [P] [US1] Verify and ensure Shadow DOM styles in `src/content/popup-view.js` maintain high z-index and zero visual clipping over native PDF viewer canvas layers
+- [X] T011 [US1] Verify dismiss triggers (Escape key, click outside, scroll) in `src/content/popup-view.js` dismiss popups cleanly without disrupting PDF navigation
 
 **Checkpoint**: User Story 1 functional — MVP dictionary lookup operational on web-hosted PDF documents.
 
@@ -61,8 +61,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T012 [P] [US2] Implement `isAllowedFileSchemeAccess()` query and permission state helper in `src/options/options.js`
-- [ ] T013 [US2] Add Local PDF File Access status card with live badge and browser-specific setup instructions in `src/options/options.html` and `src/options/options.css`
+- [X] T012 [P] [US2] Implement `isAllowedFileSchemeAccess()` query and permission state helper in `src/options/options.js`
+- [X] T013 [US2] Add Local PDF File Access status card with live badge and browser-specific setup instructions in `src/options/options.html` and `src/options/options.css`
 
 **Checkpoint**: User Story 2 functional — Local PDF lookups supported with clear permission setup guidance.
 
@@ -76,8 +76,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Verify `mouseup` multi-word drag selection and floating trigger placement over PDF viewer text layers in `src/content/content.js` and `src/content/floating-icon.js`
-- [ ] T015 [P] [US3] Verify modifier key (Alt/Ctrl/Shift + drag) phrase lookup execution in `src/content/content.js` on PDF documents
+- [X] T014 [US3] Verify `mouseup` multi-word drag selection and floating trigger placement over PDF viewer text layers in `src/content/content.js` and `src/content/floating-icon.js`
+- [X] T015 [P] [US3] Verify modifier key (Alt/Ctrl/Shift + drag) phrase lookup execution in `src/content/content.js` on PDF documents
 
 **Checkpoint**: User Story 3 functional — Multi-word domain terms and phrase selections operational on PDFs.
 
@@ -91,9 +91,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T016 [US4] Implement context menu registration (`contextMenus.create`) and selection click dispatcher in `src/background/background.js`
-- [ ] T017 [US4] Implement `TRIGGER_SELECTION_LOOKUP` message listener and fallback viewport anchoring in `src/content/content.js`
-- [ ] T018 [P] [US4] Create unit test suite for context menu registration and message handling in `tests/unit/context-menu.test.js`
+- [X] T016 [US4] Implement context menu registration (`contextMenus.create`) and selection click dispatcher in `src/background/background.js`
+- [X] T017 [US4] Implement `TRIGGER_SELECTION_LOOKUP` message listener and fallback viewport anchoring in `src/content/content.js`
+- [X] T018 [P] [US4] Create unit test suite for context menu registration and message handling in `tests/unit/context-menu.test.js`
 
 **Checkpoint**: User Story 4 functional — Context menu lookup available across all PDF documents and web pages.
 
@@ -103,10 +103,10 @@
 
 **Purpose**: Complete documentation, build all target distributions, and verify tests and linting.
 
-- [ ] T019 [P] Update `README.md` with PDF lookup documentation, context menu instructions, and local file permission guidance
-- [ ] T020 Run complete build pipeline with `npm run build` to update `dist/chrome`, `dist/firefox`, and in-source bundles
-- [ ] T021 Run complete test suite with `npm test` to verify all unit tests pass with zero regressions
-- [ ] T022 Run Firefox addon linter with `npm run lint` to verify zero manifest or bundle errors
+- [X] T019 [P] Update `README.md` with PDF lookup documentation, context menu instructions, and local file permission guidance
+- [X] T020 Run complete build pipeline with `npm run build` to update `dist/chrome`, `dist/firefox`, and in-source bundles
+- [X] T021 Run complete test suite with `npm test` to verify all unit tests pass with zero regressions
+- [X] T022 Run Firefox addon linter with `npm run lint` to verify zero manifest or bundle errors
 
 ---
 

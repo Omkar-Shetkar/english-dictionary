@@ -408,3 +408,81 @@ kbd {
 .footer-dot {
   opacity: 0.5;
 }
+
+/* Status Pills */
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 1.3;
+}
+
+.status-pill.status-enabled {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.status-pill.status-disabled {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.status-pill.status-checking {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  .status-pill.status-enabled {
+    background: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+  }
+  .status-pill.status-disabled {
+    background: rgba(245, 158, 11, 0.25);
+    color: #fcd34d;
+  }
+}
+
+.file-guide-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.file-guide-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.file-guide-steps {
+  list-style: disc;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.file-guide-steps li {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.file-guide-steps strong {
+  color: var(--text-main);
+}
+
+.file-guide-steps code {
+  font-size: 11px;
+  background: var(--bg-card);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}

@@ -139,6 +139,27 @@
         </div>
       </section>
 
+      <!-- PDF Documents & Local File Access -->
+      <section class="setting-card">
+        <div class="setting-row" style="align-items: flex-start;">
+          <div class="setting-info" style="width: 100%;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <h2 class="setting-label" style="margin: 0;">PDF Documents &amp; Local Files</h2>
+              <span id="fileAccessBadge" class="status-pill status-checking">Checking...</span>
+            </div>
+            <p id="fileAccessDetails" class="setting-desc">Detecting browser local file permissions...</p>
+            <div class="file-guide-box">
+              <p class="file-guide-title">How to enable local PDF lookups (file:/// URLs):</p>
+              <ul class="file-guide-steps">
+                <li><strong>Google Chrome / Chromium:</strong> Open <code>chrome://extensions</code>, click <strong>Details</strong> on Simple English Dictionary, and toggle on <strong>"Allow access to file URLs"</strong>.</li>
+                <li><strong>Mozilla Firefox:</strong> Web PDFs work immediately. For local files, open <code>about:addons</code>, click Simple English Dictionary, and ensure file permissions are granted under Details.</li>
+                <li><strong>Right-Click Context Menu:</strong> Select any word or phrase in a PDF, right-click, and choose <strong>"Look up in Simple English Dictionary"</strong>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Keyboard & Selection Guide -->
       <section class="setting-card guide-card">
         <div class="setting-info">
@@ -148,6 +169,7 @@
           <li><strong>Single Words:</strong> Double-click any word or abbreviation (<kbd>AI</kbd>, <kbd>photosynthesis</kbd>, <kbd>amortization</kbd>) to view definitions.</li>
           <li><strong>Compound Concepts:</strong> Highlight 2 to 4 words (<mark>machine learning</mark>, <mark>compound interest</mark>) and click the floating dictionary icon.</li>
           <li><strong>Modifier Shortcut:</strong> Hold your selected trigger key (<kbd>Alt</kbd>, <kbd>Ctrl</kbd>, or <kbd>Shift</kbd>) while selecting to open popup immediately on mouse release.</li>
+          <li><strong>PDF Documents &amp; Right-Click:</strong> Select any word in a web or local PDF, right-click, and select <em>"Look up in Simple English Dictionary"</em> for an instant definition.</li>
         </ul>
       </section>
 

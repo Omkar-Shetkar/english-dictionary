@@ -308,9 +308,56 @@ async function initializeOptions() {
     });
   }
 
+  // Update local file access status badge
+  await updateFileAccessStatus();
+
   // Attach handlers for live sandbox testing
   document.addEventListener('dblclick', handleDoubleClick);
   document.addEventListener('mouseup', handleMouseUp);
+}
+
+/**
+ * Checks whether the extension has permission to access file:// URLs.
+ * @returns {Promise<boolean>}
+ */
+export async function checkFileSchemeAccess() {
+  const extensionApi = typeof browser !== 'undefined' ? browser.extension : (typeof chrome !== 'undefined' ? chrome.extension : null);
+  if (!extensionApi || !extensionApi.isAllowedFileSchemeAccess) {
+    return false;
+  }
+  return new Promise((resolve) => {
+    try {
+      extensionApi.isAllowedFileSchemeAccess((isAllowed) => {
+        resolve(Boolean(isAllowed));
+      });
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Updates the file access status badge and explanation in options UI.
+ */
+export async function updateFileAccessStatus() {
+  const badgeEl = document.getElementById('fileAccessBadge');
+  const detailsEl = document.getElementById('fileAccessDetails');
+  if (!badgeEl) return;
+
+  const isAllowed = await checkFileSchemeAccess();
+  if (isAllowed) {
+    badgeEl.className = 'status-pill status-enabled';
+    badgeEl.textContent = 'Enabled';
+    if (detailsEl) {
+      detailsEl.textContent = 'Local file access is active. Double-click and context menu dictionary lookups work on local PDFs opened from your computer.';
+    }
+  } else {
+    badgeEl.className = 'status-pill status-disabled';
+    badgeEl.textContent = 'Disabled';
+    if (detailsEl) {
+      detailsEl.textContent = 'Local file access is not enabled. Follow the steps below in your browser extension manager to enable lookups on local PDF files.';
+    }
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initializeOptions);
