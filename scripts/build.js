@@ -64,7 +64,7 @@ async function buildBundles() {
 
   const startTime = Date.now();
 
-  const [contentRes, backgroundRes, optionsRes] = await Promise.all([
+  const [contentRes, backgroundRes, optionsRes, lookupRes] = await Promise.all([
     esbuild.build({
       entryPoints: [path.join(SRC_DIR, 'content', 'content.js')],
       bundle: true,
@@ -85,6 +85,13 @@ async function buildBundles() {
       format: 'iife',
       write: false,
       logLevel: 'warning'
+    }),
+    esbuild.build({
+      entryPoints: [path.join(SRC_DIR, 'options', 'lookup.js')],
+      bundle: true,
+      format: 'iife',
+      write: false,
+      logLevel: 'warning'
     })
   ]);
 
@@ -94,7 +101,8 @@ async function buildBundles() {
   return {
     contentBundle: contentRes.outputFiles[0].text,
     backgroundBundle: backgroundRes.outputFiles[0].text,
-    optionsBundle: optionsRes.outputFiles[0].text
+    optionsBundle: optionsRes.outputFiles[0].text,
+    lookupBundle: lookupRes.outputFiles[0].text
   };
 }
 
@@ -142,12 +150,15 @@ function assembleTarget(targetKey, bundles) {
   fs.writeFileSync(path.join(bgDir, 'background.bundle.js'), bundles.backgroundBundle, 'utf8');
   fs.writeFileSync(path.join(contentDir, 'content.bundle.js'), bundles.contentBundle, 'utf8');
   fs.writeFileSync(path.join(optionsDir, 'options.bundle.js'), bundles.optionsBundle, 'utf8');
+  fs.writeFileSync(path.join(optionsDir, 'lookup.bundle.js'), bundles.lookupBundle, 'utf8');
   console.log(`  ✓ Placed compiled bundles`);
 
   // 3. Copy static assets
   const staticFiles = [
     { src: path.join(SRC_DIR, 'options', 'options.html'), dest: path.join(optionsDir, 'options.html') },
-    { src: path.join(SRC_DIR, 'options', 'options.css'), dest: path.join(optionsDir, 'options.css') }
+    { src: path.join(SRC_DIR, 'options', 'options.css'), dest: path.join(optionsDir, 'options.css') },
+    { src: path.join(SRC_DIR, 'options', 'lookup.html'), dest: path.join(optionsDir, 'lookup.html') },
+    { src: path.join(SRC_DIR, 'options', 'lookup.css'), dest: path.join(optionsDir, 'lookup.css') }
   ];
 
   for (const { src, dest } of staticFiles) {
@@ -174,6 +185,7 @@ function updateSourceBundles(bundles) {
   fs.writeFileSync(path.join(SRC_DIR, 'background', 'background.bundle.js'), bundles.backgroundBundle, 'utf8');
   fs.writeFileSync(path.join(SRC_DIR, 'content', 'content.bundle.js'), bundles.contentBundle, 'utf8');
   fs.writeFileSync(path.join(SRC_DIR, 'options', 'options.bundle.js'), bundles.optionsBundle, 'utf8');
+  fs.writeFileSync(path.join(SRC_DIR, 'options', 'lookup.bundle.js'), bundles.lookupBundle, 'utf8');
 }
 
 async function main() {
