@@ -1,10 +1,10 @@
 /**
  * PopupView: Manages rendering of the dictionary popup inside an isolated Shadow DOM.
  * Guarantees zero CSS clash with host web pages (FR-013) and uses safe DOM node
- * construction to comply with strict Mozilla Add-ons (AMO) security guidelines.
+ * construction to comply with strict browser extension security guidelines.
  */
 
-const HOST_ELEMENT_ID = 'eng-dict-firefox-host-root';
+const HOST_ELEMENT_ID = 'eng-dict-host-root';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -571,7 +571,7 @@ export class PopupView {
           utterance.onerror = stopButtonState;
           window.speechSynthesis.speak(utterance);
         } catch (synthErr) {
-          console.warn('[Dictionary Addon] Natural speech synthesis failed:', synthErr);
+          console.warn('[Simple English Dictionary] Natural speech synthesis failed:', synthErr);
           stopButtonState();
         }
       } else {

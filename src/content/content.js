@@ -27,7 +27,7 @@ async function syncConfig() {
   try {
     activeConfig = await getSettings();
   } catch (err) {
-    console.warn('[Dictionary Addon] Failed to sync config:', err);
+    console.warn('[Simple English Dictionary] Failed to sync config:', err);
   }
 }
 
@@ -57,7 +57,7 @@ async function sendBackgroundMessage(payload) {
         return res;
       }
     } catch (err) {
-      console.warn('[Dictionary Addon] browser.runtime.sendMessage error:', err);
+      console.warn('[Simple English Dictionary] browser.runtime.sendMessage error:', err);
     }
   }
 

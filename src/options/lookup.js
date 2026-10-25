@@ -405,7 +405,7 @@ async function executeLookup(rawQuery) {
       return;
     }
   } catch (err) {
-    console.warn('[Dictionary Addon] Direct lookup error:', err);
+    console.warn('[Simple English Dictionary] Direct lookup error:', err);
   }
 
   renderError(term, bgRes?.errorMessage || 'No definitions found for this term.');

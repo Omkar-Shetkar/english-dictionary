@@ -723,7 +723,7 @@
       const stored = result && result[STORAGE_KEY] ? result[STORAGE_KEY] : {};
       return validateConfig(stored);
     } catch (err) {
-      console.warn("[Dictionary Addon] Failed to load settings from storage:", err);
+      console.warn("[Simple English Dictionary] Failed to load settings from storage:", err);
       return { ...DEFAULT_CONFIG };
     }
   }

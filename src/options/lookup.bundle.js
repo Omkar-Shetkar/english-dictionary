@@ -46,7 +46,7 @@
       const stored = result && result[STORAGE_KEY] ? result[STORAGE_KEY] : {};
       return validateConfig(stored);
     } catch (err) {
-      console.warn("[Dictionary Addon] Failed to load settings from storage:", err);
+      console.warn("[Simple English Dictionary] Failed to load settings from storage:", err);
       return { ...DEFAULT_CONFIG };
     }
   }
@@ -1126,7 +1126,7 @@
         return;
       }
     } catch (err) {
-      console.warn("[Dictionary Addon] Direct lookup error:", err);
+      console.warn("[Simple English Dictionary] Direct lookup error:", err);
     }
     renderError(term, bgRes?.errorMessage || "No definitions found for this term.");
   }

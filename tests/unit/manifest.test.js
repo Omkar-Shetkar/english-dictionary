@@ -109,4 +109,14 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
       expect(manifest.background?.scripts).toContain('background/background.bundle.js');
     }
   });
+
+  it('ensures options.html footer and branding are browser-agnostic', () => {
+    const optionsHtmlPath = path.join(ROOT_DIR, 'src', 'options', 'options.html');
+    const html = fs.readFileSync(optionsHtmlPath, 'utf8');
+
+    // Footer should be browser-agnostic (not 'Firefox Addon')
+    expect(html).not.toMatch(/Firefox Addon/i);
+    expect(html).toContain('footerExtensionInfo');
+    expect(html).toMatch(/Simple English Dictionary Extension/i);
+  });
 });
