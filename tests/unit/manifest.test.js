@@ -84,8 +84,10 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
 
   it('verifies packaged release archives contain valid root manifests', async () => {
     const AdmZip = (await import('adm-zip')).default;
-    const chromeZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', 'simple-english-dictionary-chrome-1.0.3.zip');
-    const firefoxZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', 'simple-english-dictionary-firefox-1.0.3.zip');
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'));
+    const version = pkg.version;
+    const chromeZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', `simple-english-dictionary-chrome-${version}.zip`);
+    const firefoxZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', `simple-english-dictionary-firefox-${version}.zip`);
 
     if (fs.existsSync(chromeZipPath)) {
       const zip = new AdmZip(chromeZipPath);
