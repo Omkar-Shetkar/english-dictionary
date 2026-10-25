@@ -35,6 +35,9 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
 
     // Permissions and actions
     expect(chrome.permissions).toContain('storage');
+    expect(chrome.permissions).toContain('contextMenus');
+    expect(chrome.content_scripts?.[0]?.all_frames).toBe(true);
+    expect(chrome.content_scripts?.[0]?.match_about_blank).toBe(true);
     expect(chrome.host_permissions).toContain('https://api.dictionaryapi.dev/*');
     expect(chrome.host_permissions).toContain('https://en.wiktionary.org/*');
     expect(chrome.host_permissions).toContain('https://en.wikipedia.org/*');
@@ -55,6 +58,9 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
 
     // Permissions and actions
     expect(firefox.permissions).toContain('storage');
+    expect(firefox.permissions).toContain('contextMenus');
+    expect(firefox.content_scripts?.[0]?.all_frames).toBe(true);
+    expect(firefox.content_scripts?.[0]?.match_about_blank).toBe(true);
     expect(firefox.host_permissions).toContain('https://api.dictionaryapi.dev/*');
     expect(firefox.action?.default_popup).toBe('options/options.html');
   });
@@ -78,8 +84,10 @@ describe('Manifest V3 Multi-Target Schema Verification', () => {
 
   it('verifies packaged release archives contain valid root manifests', async () => {
     const AdmZip = (await import('adm-zip')).default;
-    const chromeZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', 'simple-english-dictionary-chrome-1.0.3.zip');
-    const firefoxZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', 'simple-english-dictionary-firefox-1.0.3.zip');
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'));
+    const version = pkg.version;
+    const chromeZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', `simple-english-dictionary-chrome-${version}.zip`);
+    const firefoxZipPath = path.join(ROOT_DIR, 'web-ext-artifacts', `simple-english-dictionary-firefox-${version}.zip`);
 
     if (fs.existsSync(chromeZipPath)) {
       const zip = new AdmZip(chromeZipPath);

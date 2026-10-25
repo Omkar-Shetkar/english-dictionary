@@ -1,6 +1,6 @@
 {
   "name": "simple-english-dictionary",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Simple and intuitive English dictionary browser extension for instant word lookup on double-click (Chrome & Firefox).",
   "type": "module",
   "scripts": {

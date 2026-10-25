@@ -139,6 +139,27 @@
         </div>
       </section>
 
+      <!-- PDF Documents & Local File Access -->
+      <section class="setting-card">
+        <div class="setting-row" style="align-items: flex-start;">
+          <div class="setting-info" style="width: 100%;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <h2 class="setting-label" style="margin: 0;">PDF Documents &amp; Local Files</h2>
+              <span id="fileAccessBadge" class="status-pill status-checking">Checking...</span>
+            </div>
+            <p id="fileAccessDetails" class="setting-desc">Detecting browser local file permissions...</p>
+            <div class="file-guide-box">
+              <p class="file-guide-title">How to look up words in PDFs &amp; local files:</p>
+              <ul class="file-guide-steps">
+                <li><strong>PDF Documents (Firefox &amp; Chrome):</strong> Select any word or phrase in a PDF, right-click, and choose <strong>"Look up in Simple English Dictionary"</strong>. A sleek floating dictionary card opens with full definitions, phonetics, audio, and live search.</li>
+                <li><strong>Why Right-Click on Firefox PDFs:</strong> Firefox's built-in PDF viewer is a privileged browser sandbox that prohibits in-page content scripts from listening to double-clicks. The browser context menu seamlessly routes any selected text to the dictionary window.</li>
+                <li><strong>Local file:/// Permissions:</strong> In Chrome, open <code>chrome://extensions</code> &rarr; Details &rarr; enable <strong>"Allow access to file URLs"</strong>. In Firefox, manage permissions under <code>about:addons</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Keyboard & Selection Guide -->
       <section class="setting-card guide-card">
         <div class="setting-info">
@@ -148,6 +169,7 @@
           <li><strong>Single Words:</strong> Double-click any word or abbreviation (<kbd>AI</kbd>, <kbd>photosynthesis</kbd>, <kbd>amortization</kbd>) to view definitions.</li>
           <li><strong>Compound Concepts:</strong> Highlight 2 to 4 words (<mark>machine learning</mark>, <mark>compound interest</mark>) and click the floating dictionary icon.</li>
           <li><strong>Modifier Shortcut:</strong> Hold your selected trigger key (<kbd>Alt</kbd>, <kbd>Ctrl</kbd>, or <kbd>Shift</kbd>) while selecting to open popup immediately on mouse release.</li>
+          <li><strong>PDF Documents &amp; Right-Click:</strong> Select any word in a web or local PDF, right-click, and select <em>"Look up in Simple English Dictionary"</em> for an instant definition.</li>
         </ul>
       </section>
 
@@ -167,7 +189,7 @@
     </main>
 
     <footer class="options-footer">
-      <span>Simple English Dictionary Firefox Addon v1.0.2</span>
+      <span>Simple English Dictionary v1.0.4</span>
       <span class="footer-dot">•</span>
       <span>Powered by Free Dictionary API, Wiktionary &amp; Wikipedia</span>
     </footer>

@@ -45,4 +45,12 @@ describe('calculatePopupPosition', () => {
     expect(pos.top).toBe(VIEWPORT_MARGIN);
     expect(pos.left).toBe(VIEWPORT_MARGIN);
   });
+
+  it('centers popup horizontally when anchorRect has zero width and height', () => {
+    const zeroRect = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+    const pos = calculatePopupPosition({ anchorRect: zeroRect, ...popup, ...viewport });
+    expect(pos.left).toBe(Math.round((1000 - 300) / 2));
+    expect(pos.top).toBe(80);
+    expect(pos.placement).toBe('bottom');
+  });
 });

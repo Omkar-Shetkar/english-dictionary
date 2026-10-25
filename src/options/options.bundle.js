@@ -86,6 +86,10 @@
   var MAX_WORD_LENGTH = 45;
   var MAX_PHRASE_WORDS = 4;
   var MAX_PHRASE_LENGTH = 120;
+  function preCleanPdfArtifacts(text) {
+    if (typeof text !== "string") return "";
+    return text.replace(/\u00AD/g, "").replace(/(\p{L})[-‐‑‒–—]\s*[\r\n]+\s*(\p{L})/gu, "$1$2");
+  }
   function sanitizeDomainTerm(rawText) {
     if (typeof rawText !== "string") {
       return {
@@ -98,7 +102,7 @@
         wordCount: 0
       };
     }
-    const raw = rawText.trim();
+    const raw = preCleanPdfArtifacts(rawText).trim();
     if (!raw) {
       return {
         isValid: false,
@@ -182,6 +186,11 @@
   }) {
     if (!anchorRect) {
       return { top: VIEWPORT_MARGIN, left: VIEWPORT_MARGIN, placement: "bottom" };
+    }
+    if (anchorRect.width === 0 && anchorRect.height === 0) {
+      const centeredLeft = Math.max(VIEWPORT_MARGIN, Math.round((viewportWidth - popupWidth) / 2));
+      const fallbackTop = Math.min(80, Math.max(VIEWPORT_MARGIN, Math.round((viewportHeight - popupHeight) / 3)));
+      return { top: fallbackTop, left: centeredLeft, placement: "bottom" };
     }
     let left = anchorRect.left;
     if (left + popupWidth > viewportWidth - VIEWPORT_MARGIN) {
@@ -1766,8 +1775,43 @@
         flashSavedBadge();
       });
     }
+    await updateFileAccessStatus();
     document.addEventListener("dblclick", handleDoubleClick);
     document.addEventListener("mouseup", handleMouseUp);
+  }
+  async function checkFileSchemeAccess() {
+    const extensionApi = typeof browser !== "undefined" ? browser.extension : typeof chrome !== "undefined" ? chrome.extension : null;
+    if (!extensionApi || !extensionApi.isAllowedFileSchemeAccess) {
+      return false;
+    }
+    return new Promise((resolve) => {
+      try {
+        extensionApi.isAllowedFileSchemeAccess((isAllowed) => {
+          resolve(Boolean(isAllowed));
+        });
+      } catch {
+        resolve(false);
+      }
+    });
+  }
+  async function updateFileAccessStatus() {
+    const badgeEl = document.getElementById("fileAccessBadge");
+    const detailsEl = document.getElementById("fileAccessDetails");
+    if (!badgeEl) return;
+    const isAllowed = await checkFileSchemeAccess();
+    if (isAllowed) {
+      badgeEl.className = "status-pill status-enabled";
+      badgeEl.textContent = "Enabled";
+      if (detailsEl) {
+        detailsEl.textContent = "Local file access is active. Double-click and context menu dictionary lookups work on local PDFs opened from your computer.";
+      }
+    } else {
+      badgeEl.className = "status-pill status-disabled";
+      badgeEl.textContent = "Disabled";
+      if (detailsEl) {
+        detailsEl.textContent = "Local file access is not enabled. Follow the steps below in your browser extension manager to enable lookups on local PDF files.";
+      }
+    }
   }
   document.addEventListener("DOMContentLoaded", initializeOptions);
 })();

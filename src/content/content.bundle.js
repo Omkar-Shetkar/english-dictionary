@@ -6,6 +6,10 @@
   var MAX_WORD_LENGTH = 45;
   var MAX_PHRASE_WORDS = 4;
   var MAX_PHRASE_LENGTH = 120;
+  function preCleanPdfArtifacts(text) {
+    if (typeof text !== "string") return "";
+    return text.replace(/\u00AD/g, "").replace(/(\p{L})[-‐‑‒–—]\s*[\r\n]+\s*(\p{L})/gu, "$1$2");
+  }
   function sanitizeDomainTerm(rawText) {
     if (typeof rawText !== "string") {
       return {
@@ -18,7 +22,7 @@
         wordCount: 0
       };
     }
-    const raw = rawText.trim();
+    const raw = preCleanPdfArtifacts(rawText).trim();
     if (!raw) {
       return {
         isValid: false,
@@ -102,6 +106,11 @@
   }) {
     if (!anchorRect) {
       return { top: VIEWPORT_MARGIN, left: VIEWPORT_MARGIN, placement: "bottom" };
+    }
+    if (anchorRect.width === 0 && anchorRect.height === 0) {
+      const centeredLeft = Math.max(VIEWPORT_MARGIN, Math.round((viewportWidth - popupWidth) / 2));
+      const fallbackTop = Math.min(80, Math.max(VIEWPORT_MARGIN, Math.round((viewportHeight - popupHeight) / 3)));
+      return { top: fallbackTop, left: centeredLeft, placement: "bottom" };
     }
     let left = anchorRect.left;
     if (left + popupWidth > viewportWidth - VIEWPORT_MARGIN) {
@@ -937,29 +946,50 @@
       popupView.showError("Unable to connect to dictionary service. Please check your internet connection.", word, coords, activeConfig.theme);
     }
   }
-  document.addEventListener("dblclick", async (event) => {
+  function resolveAnchorRect(selection, event) {
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width > 0 || rect.height > 0) {
+        return rect;
+      }
+      const clientRects = range.getClientRects();
+      if (clientRects.length > 0 && (clientRects[0].width > 0 || clientRects[0].height > 0)) {
+        return clientRects[0];
+      }
+    }
+    if (event && event.target && typeof event.target.getBoundingClientRect === "function") {
+      const targetRect = event.target.getBoundingClientRect();
+      if (targetRect.width > 0 && targetRect.height > 0) {
+        return targetRect;
+      }
+    }
+    if (event && typeof event.clientX === "number") {
+      return { top: event.clientY, bottom: event.clientY, left: event.clientX, right: event.clientX, width: 0, height: 0 };
+    }
+    return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+  }
+  document.addEventListener("dblclick", (event) => {
     if (!activeConfig.enabled) {
       return;
     }
     if (!matchesModifier(event, activeConfig.modifierKey)) {
       return;
     }
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return;
-    }
-    const rawText = selection.toString();
-    const sanitized = sanitizeDomainTerm(rawText);
-    if (!sanitized.isValid || !sanitized.cleanTerm) {
-      return;
-    }
-    const range = selection.getRangeAt(0);
-    const anchorRect = range.getBoundingClientRect();
-    if (anchorRect.width === 0 && anchorRect.height === 0) {
-      return;
-    }
-    floatingIcon.dismiss();
-    await performLookup(sanitized, anchorRect);
+    setTimeout(async () => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        return;
+      }
+      const rawText = selection.toString();
+      const sanitized = sanitizeDomainTerm(rawText);
+      if (!sanitized.isValid || !sanitized.cleanTerm) {
+        return;
+      }
+      const anchorRect = resolveAnchorRect(selection, event);
+      floatingIcon.dismiss();
+      await performLookup(sanitized, anchorRect);
+    }, 15);
   });
   document.addEventListener("mouseup", (event) => {
     if (!activeConfig.enabled || !activeConfig.multiWordEnabled) {
@@ -980,9 +1010,8 @@
         floatingIcon.dismiss();
         return;
       }
-      const range = selection.getRangeAt(0);
-      const anchorRect = range.getBoundingClientRect();
-      if (anchorRect.width === 0 && anchorRect.height === 0) {
+      const anchorRect = resolveAnchorRect(selection, event);
+      if (anchorRect.width === 0 && anchorRect.height === 0 && !anchorRect.left) {
         floatingIcon.dismiss();
         return;
       }
@@ -1002,6 +1031,24 @@
       floatingIcon.show({ top, left }, () => {
         performLookup(sanitized, anchorRect);
       });
-    }, 10);
+    }, 15);
   });
+  var runtimeMsgApi = typeof browser !== "undefined" ? browser.runtime : typeof chrome !== "undefined" ? chrome.runtime : null;
+  if (runtimeMsgApi && runtimeMsgApi.onMessage) {
+    runtimeMsgApi.onMessage.addListener((message, sender, sendResponse) => {
+      if (message?.action === "TRIGGER_SELECTION_LOOKUP") {
+        const termToQuery = message.payload?.term || (typeof window !== "undefined" && window.getSelection ? window.getSelection().toString() : "");
+        const sanitized = sanitizeDomainTerm(termToQuery);
+        if (!sanitized.isValid || !sanitized.cleanTerm) {
+          if (sendResponse) sendResponse({ status: "ignored", reason: "Invalid or empty term" });
+          return;
+        }
+        const selection = typeof window !== "undefined" && window.getSelection ? window.getSelection() : null;
+        const anchorRect = resolveAnchorRect(selection);
+        floatingIcon.dismiss();
+        performLookup(sanitized, anchorRect);
+        if (sendResponse) sendResponse({ status: "success" });
+      }
+    });
+  }
 })();

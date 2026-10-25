@@ -22,6 +22,20 @@ export const MAX_PHRASE_WORDS = 4;
 export const MAX_PHRASE_LENGTH = 120;
 
 /**
+ * Pre-cleans PDF-specific typography artifacts:
+ * - Strips soft hyphens (\u00AD) embedded in digital PDF text layers.
+ * - De-hyphenates words split across line breaks (e.g. "inter-\n\rnational" -> "international").
+ * @param {string} text
+ * @returns {string}
+ */
+export function preCleanPdfArtifacts(text) {
+  if (typeof text !== 'string') return '';
+  return text
+    .replace(/\u00AD/g, '')
+    .replace(/(\p{L})[-‐‑‒–—]\s*[\r\n]+\s*(\p{L})/gu, '$1$2');
+}
+
+/**
  * Clean and validate a single selected word lemma (legacy / single-word lookup).
  * Lowercases word for standard dictionary querying.
  * @param {string|unknown} rawText - Text from window.getSelection().
@@ -32,7 +46,7 @@ export function sanitizeWord(rawText) {
     return { isValid: false, word: '', raw: '' };
   }
 
-  const raw = rawText.trim();
+  const raw = preCleanPdfArtifacts(rawText).trim();
   if (!raw) {
     return { isValid: false, word: '', raw };
   }
@@ -86,7 +100,7 @@ export function sanitizeDomainTerm(rawText) {
     };
   }
 
-  const raw = rawText.trim();
+  const raw = preCleanPdfArtifacts(rawText).trim();
   if (!raw) {
     return {
       isValid: false,

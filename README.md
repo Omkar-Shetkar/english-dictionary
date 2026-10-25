@@ -7,6 +7,8 @@ A simple, fast, and intuitive English dictionary browser extension for **Google 
 ## ✨ Features
 
 - ⚡ **Instant Word Lookup**: Double-click any word on any webpage to view its definition in an elegant, non-intrusive floating card.
+- 📄 **PDF Document Support**: Double-click or right-click to look up words in web-hosted and local PDF documents opened in your browser.
+- 🖱️ **Right-Click Context Menu**: Select any word or phrase and choose "Look up in Simple English Dictionary" as a dependable lookup fallback.
 - 🔊 **Spoken Pronunciation**: Listen to audio pronunciation recordings directly from the popup with a single click.
 - 🔤 **Phonetic IPA Transcription**: Clear phonetic spelling displayed for every supported vocabulary word.
 - 🎯 **Configurable Key Triggers**: Choose your preferred trigger in preferences:
@@ -18,6 +20,22 @@ A simple, fast, and intuitive English dictionary browser extension for **Google 
 - 🔒 **Privacy-First & Strictly Ephemeral**: Zero search history or telemetry tracking. Searches are performed on-demand via free public lexical services ([Free Dictionary API](https://api.dictionaryapi.dev), Wiktionary, Wikipedia).
 - 🌓 **Adaptive Theme**: Smooth glassmorphic appearance supporting both Light and Dark modes.
 - 🌐 **Cross-Browser Multi-Target**: Dedicated, compliant Manifest V3 distributions for Google Chrome (service worker) and Mozilla Firefox (background scripts & Gecko ID).
+
+---
+
+### 📄 Working with PDF Documents
+
+Simple English Dictionary works seamlessly on PDF documents opened inside Google Chrome and Mozilla Firefox:
+
+- **Web-Hosted PDFs (`https://.../*.pdf`)**:
+  - Double-click any word or drag-select a phrase (2 to 4 words).
+  - The dictionary popup card anchors smoothly near your selection.
+  - Right-click and choose **"Look up in Simple English Dictionary"** for an instant context-menu lookup.
+- **Local PDF Files (`file:///...`)**:
+  - Due to browser platform security sandboxes, extensions require user consent to read local `file://` URLs.
+  - **Google Chrome / Chromium**: Navigate to `chrome://extensions`, click **Details** under Simple English Dictionary, and toggle on **"Allow access to file URLs"**.
+  - **Mozilla Firefox**: Navigate to `about:addons`, click Simple English Dictionary, and ensure local file access permissions are granted under Details.
+  - Check the live **Local File Access** status pill in extension preferences for confirmation.
 
 ---
 
