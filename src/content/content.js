@@ -11,6 +11,38 @@ popupView.setStyles(POPUP_STYLES);
 const floatingIcon = new FloatingIcon();
 floatingIcon.setStyles(POPUP_STYLES);
 
+let lastAnchorRect = null;
+
+popupView.setOnRelatedPhraseClick(async (phrase) => {
+  const sanitized = sanitizeDomainTerm(phrase);
+  if (sanitized.isValid && sanitized.cleanTerm) {
+    const anchor = lastAnchorRect || {
+      top: window.innerHeight / 3,
+      bottom: window.innerHeight / 3,
+      left: window.innerWidth / 3,
+      right: window.innerWidth / 3,
+      width: 0,
+      height: 0
+    };
+    await performLookup(sanitized, anchor);
+  }
+});
+
+popupView.setOnSuggestWordClick(async (word) => {
+  const sanitized = sanitizeDomainTerm(word);
+  if (sanitized.isValid && sanitized.cleanTerm) {
+    const anchor = lastAnchorRect || {
+      top: window.innerHeight / 3,
+      bottom: window.innerHeight / 3,
+      left: window.innerWidth / 3,
+      right: window.innerWidth / 3,
+      width: 0,
+      height: 0
+    };
+    await performLookup(sanitized, anchor);
+  }
+});
+
 // In-memory cached configuration for fast synchronous event checks
 let activeConfig = {
   modifierKey: 'none',
@@ -82,6 +114,7 @@ async function sendBackgroundMessage(payload) {
  * @param {DOMRect} anchorRect
  */
 async function performLookup(sanitized, anchorRect) {
+  lastAnchorRect = anchorRect;
   const word = sanitized.cleanTerm;
   const coords = calculatePopupPosition({
     anchorRect,
@@ -205,8 +238,8 @@ document.addEventListener('mouseup', (event) => {
     const rawText = selection.toString();
     const sanitized = sanitizeDomainTerm(rawText);
 
-    // Only trigger for 2 to 4 word phrases
-    if (!sanitized.isValid || sanitized.wordCount < 2 || sanitized.wordCount > 4) {
+    // Only trigger for 2 to 8 word phrases
+    if (!sanitized.isValid || sanitized.wordCount < 2 || sanitized.wordCount > 8) {
       floatingIcon.dismiss();
       return;
     }

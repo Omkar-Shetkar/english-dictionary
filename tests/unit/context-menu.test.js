@@ -102,6 +102,27 @@ describe('Context Menu Selection Lookup', () => {
     );
   });
 
+  it('dispatches multi-word idiom ("actions speak louder than words") to the active tab', async () => {
+    const info = {
+      menuItemId: CONTEXT_MENU_ID,
+      selectionText: 'actions speak louder than words'
+    };
+    const tab = { id: 42, url: 'https://en.wikipedia.org/wiki/Proverb' };
+
+    await handleContextMenuClick(info, tab);
+
+    expect(mockTabs.sendMessage).toHaveBeenCalledWith(
+      42,
+      {
+        action: 'TRIGGER_SELECTION_LOOKUP',
+        payload: {
+          term: 'actions speak louder than words'
+        }
+      },
+      expect.any(Function)
+    );
+  });
+
   it('immediately opens the floating lookup window when on a PDF document', async () => {
     const info = {
       menuItemId: CONTEXT_MENU_ID,

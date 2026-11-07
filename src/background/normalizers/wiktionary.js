@@ -6,7 +6,9 @@
  * - Case-sensitive lookup parsing (e.g. "AI" vs "ai", "RAM" vs "ram").
  * - Strips HTML markup cleanly.
  * - Extracts acronym expansions and assigns domain category badges.
- * - Segregates domain/acronym meanings from general lexical meanings for stacked disambiguation.
+ * - Identifies Idioms, Proverbs, Sayings, and Phrasal Verbs with expression badges.
+ * - Extracts grammatical traits (transitivity, separability) and origins/etymologies.
+ * - Segregates domain/acronym/idiom meanings from general lexical meanings for stacked disambiguation.
  */
 
 import {
@@ -46,8 +48,11 @@ export function normalizeWiktionaryPayload(data, queriedTerm) {
   }
 
   const word = queriedTerm || 'unknown';
+  const isMultiWord = word.trim().split(/\s+/).length > 1;
   let isAcronym = false;
   let acronymExpansion = null;
+  let expressionType = 'general';
+  let origin = null;
 
   const domainMeaningsMap = new Map();
   const generalMeaningsMap = new Map();
@@ -57,13 +62,40 @@ export function normalizeWiktionaryPayload(data, queriedTerm) {
     const rawPos = originalPos.toLowerCase();
     const isAbbrevPos = rawPos.includes('abbreviation') || rawPos.includes('initialism') || rawPos.includes('acronym');
 
+    // Expression type detection from part of speech
+    const isProverbPos = rawPos.includes('proverb');
+    const isIdiomPos = rawPos.includes('idiom') || rawPos.includes('phrase');
+    const isPhrasalVerbPos = isMultiWord && (rawPos.includes('verb') || rawPos.includes('phrasal'));
+
+    if (item.etymology && typeof item.etymology === 'string' && !origin) {
+      origin = cleanHtml(item.etymology);
+    }
+
     if (Array.isArray(item.definitions)) {
       for (const d of item.definitions) {
         const text = cleanHtml(d.definition);
         if (!text || text.length < 2) continue;
 
         const contextTags = extractContextTags(text);
-        const domain = classifyDomain(text, [rawPos, ...contextTags]);
+        let domain = classifyDomain(text, [rawPos, ...contextTags]);
+
+        // Classification for multi-word idioms and expressions
+        let isIdiomatic = false;
+        if (isProverbPos || /\b(proverb|saying)\b/i.test(text)) {
+          domain = 'Proverb';
+          expressionType = 'proverb';
+          isIdiomatic = true;
+        } else if (isPhrasalVerbPos) {
+          domain = 'Phrasal Verb';
+          expressionType = 'phrasal_verb';
+          isIdiomatic = true;
+        } else if (isIdiomPos || isMultiWord || /\b(idiomatic|figurative)\b/i.test(text)) {
+          domain = 'Idiom';
+          if (expressionType === 'general') {
+            expressionType = 'idiom';
+          }
+          isIdiomatic = true;
+        }
 
         // Check if definition expands an acronym
         const expansion = extractAcronymExpansion(word, text);
@@ -78,14 +110,28 @@ export function normalizeWiktionaryPayload(data, queriedTerm) {
           ? cleanHtml(d.examples[0])
           : null;
 
+        // Extract grammatical flags (transitivity/separability)
+        const grammarNotes = {};
+        if (/\btransitive\b/i.test(text) || contextTags.includes('transitive')) {
+          grammarNotes.transitivity = 'transitive';
+        } else if (/\bintransitive\b/i.test(text) || contextTags.includes('intransitive')) {
+          grammarNotes.transitivity = 'intransitive';
+        }
+        if (/\binseparable\b/i.test(text)) {
+          grammarNotes.separability = 'inseparable';
+        } else if (/\bseparable\b/i.test(text)) {
+          grammarNotes.separability = 'separable';
+        }
+
         const defObj = {
           definition: text,
           example,
+          grammarNotes: Object.keys(grammarNotes).length > 0 ? grammarNotes : undefined,
           synonyms: [],
           antonyms: []
         };
 
-        const targetMap = (domain !== DOMAINS.GENERAL || isAbbrevPos)
+        const targetMap = (domain !== DOMAINS.GENERAL || isAbbrevPos || isIdiomatic)
           ? domainMeaningsMap
           : generalMeaningsMap;
 
@@ -109,7 +155,7 @@ export function normalizeWiktionaryPayload(data, queriedTerm) {
     return null;
   }
 
-  // If there are no domain-specific meanings, move general meanings into primary meanings
+  // If there are no domain/idiom-specific meanings, move general meanings into primary meanings
   const primaryMeanings = meanings.length > 0 ? meanings : generalMeanings;
   const secondaryMeanings = meanings.length > 0 ? generalMeanings : [];
 
@@ -117,12 +163,14 @@ export function normalizeWiktionaryPayload(data, queriedTerm) {
     word,
     isAcronym,
     acronymExpansion,
+    expressionType,
+    origin,
     meanings: primaryMeanings,
     generalMeanings: secondaryMeanings,
     phonetic: null,
     audioUrl: null,
     encyclopedicSummary: null,
-    referenceUrl: `https://en.wiktionary.org/wiki/${encodeURIComponent(word)}`,
+    referenceUrl: `https://en.wiktionary.org/wiki/${encodeURIComponent(word.replace(/\s+/g, '_'))}`,
     source: 'wiktionary'
   };
 }

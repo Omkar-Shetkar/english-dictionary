@@ -28,11 +28,22 @@ describe('multi-word domain term selection', () => {
       expect(res.isMultiWord).toBe(true);
     });
 
-    it('rejects selections with more than 4 words', () => {
-      const res = sanitizeDomainTerm('this is a sentence with five words');
+    it('accepts 5 to 8 word idioms and sayings', () => {
+      const fiveWords = sanitizeDomainTerm('actions speak louder than words');
+      expect(fiveWords.isValid).toBe(true);
+      expect(fiveWords.cleanTerm).toBe('actions speak louder than words');
+      expect(fiveWords.wordCount).toBe(5);
+
+      const eightWords = sanitizeDomainTerm("don't put all your eggs in one basket");
+      expect(eightWords.isValid).toBe(true);
+      expect(eightWords.wordCount).toBe(8);
+    });
+
+    it('rejects selections with more than 8 words', () => {
+      const res = sanitizeDomainTerm('this is a test sentence with more than eight words');
       expect(res.isValid).toBe(false);
       expect(res.cleanTerm).toBe('');
-      expect(res.wordCount).toBe(7);
+      expect(res.wordCount).toBe(10);
     });
 
     it('differentiates single words from multi-word phrases', () => {

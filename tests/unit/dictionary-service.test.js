@@ -272,5 +272,111 @@ describe('dictionary-service', () => {
       expect(res2.status).toBe('success');
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
+
+    it('resolves inflected idiom ("bit the bullet") via candidate lemmatization fallback', async () => {
+      const mockFetch = vi.fn().mockImplementation(async (url) => {
+        if (url.includes('wiktionary.org/api/rest_v1/page/definition/bite_the_bullet')) {
+          return {
+            status: 200,
+            json: async () => ({
+              en: [
+                {
+                  partOfSpeech: 'Phrase',
+                  etymology: 'Soldiers biting lead bullets during surgery.',
+                  definitions: [
+                    { definition: '<p>(idiomatic) To accept or endure a grim or dire situation.</p>' }
+                  ]
+                }
+              ]
+            })
+          };
+        }
+        return { status: 404 };
+      });
+
+      const res = await lookupDomainTerm({ term: 'bit the bullet', wordCount: 3 }, mockFetch);
+      expect(res.status).toBe('success');
+      expect(res.entry.word).toBe('bite the bullet');
+      expect(res.entry.canonicalForm).toBe('bite the bullet');
+      expect(res.entry.matchedSurfaceForm).toBe('bit the bullet');
+      expect(res.entry.expressionType).toBe('idiom');
+      expect(res.entry.origin).toContain('biting lead bullets');
+    });
+
+    it('resolves pronoun variant ("pulling his leg") via pronoun normalization', async () => {
+      const mockFetch = vi.fn().mockImplementation(async (url) => {
+        if (url.includes("pull_someone's_leg") || url.includes("pull_one's_leg")) {
+          return {
+            status: 200,
+            json: async () => ({
+              en: [
+                {
+                  partOfSpeech: 'Phrase',
+                  definitions: [
+                    { definition: '<p>(idiomatic) To tease someone playfully.</p>' }
+                  ]
+                }
+              ]
+            })
+          };
+        }
+        return { status: 404 };
+      });
+
+      const res = await lookupDomainTerm({ term: 'pulling his leg', wordCount: 3 }, mockFetch);
+      expect(res.status).toBe('success');
+      expect(res.entry.canonicalForm).toBe("pull someone's leg");
+      expect(res.entry.matchedSurfaceForm).toBe('pulling his leg');
+    });
+
+    it('resolves phrasal verb via Free Dictionary fallback', async () => {
+      const mockFetch = vi.fn().mockImplementation(async (url) => {
+        if (url.includes('api.dictionaryapi.dev/api/v2/entries/en/look%20forward%20to')) {
+          return {
+            status: 200,
+            json: async () => [
+              {
+                word: 'look forward to',
+                meanings: [
+                  {
+                    partOfSpeech: 'verb',
+                    definitions: [{ definition: 'To anticipate with pleasure.' }]
+                  }
+                ]
+              }
+            ]
+          };
+        }
+        return { status: 404 };
+      });
+
+      const res = await lookupDomainTerm({ term: 'look forward to', wordCount: 3 }, mockFetch);
+      expect(res.status).toBe('success');
+      expect(res.entry.expressionType).toBe('phrasal_verb');
+      expect(res.entry.meanings[0].domain).toBe('Phrasal Verb');
+    });
+
+    it('attaches related idioms to single-word lookup results', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        status: 200,
+        json: async () => [
+          {
+            word: 'weather',
+            meanings: [
+              {
+                partOfSpeech: 'noun',
+                definitions: [{ definition: 'Atmospheric conditions.' }]
+              }
+            ]
+          }
+        ]
+      });
+
+      const res = await lookupDomainTerm({ term: 'weather', wordCount: 1 }, mockFetch);
+      expect(res.status).toBe('success');
+      expect(res.entry.relatedIdioms).toBeDefined();
+      expect(res.entry.relatedIdioms.length).toBeGreaterThan(0);
+      expect(res.entry.relatedIdioms.some((item) => item.phrase === 'under the weather')).toBe(true);
+    });
   });
 });

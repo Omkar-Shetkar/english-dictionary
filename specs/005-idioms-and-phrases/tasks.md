@@ -15,8 +15,8 @@
 
 **Purpose**: Expand phrase boundary thresholds and text sanitization limits to support longer multi-word expressions.
 
-- [ ] T001 Expand phrase length thresholds in src/common/sanitize.js (increase MAX_PHRASE_WORDS to 8 and MAX_PHRASE_LENGTH to 180)
-- [ ] T002 [P] Implement unit tests for 2-8 word sanitization, boundary cleaning, and punctuation trimming in tests/unit/sanitize.test.js
+- [x] T001 Expand phrase length thresholds in src/common/sanitize.js (increase MAX_PHRASE_WORDS to 8 and MAX_PHRASE_LENGTH to 180)
+- [x] T002 [P] Implement unit tests for 2-8 word sanitization, boundary cleaning, and punctuation trimming in tests/unit/sanitize.test.js
 
 ---
 
@@ -26,13 +26,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this foundational phase is complete.
 
-- [ ] T003 [P] Implement verb lemmatizer and pronoun normalizer in src/background/phrase-normalizer.js to generate candidate queries for inflected forms and pronouns
-- [ ] T004 [P] Implement unit tests for verb lemmatization (past tense, participles, gerunds) and pronoun mapping in tests/unit/phrase-normalizer.test.js
-- [ ] T005 [P] Implement high-frequency keyword-to-idiom reference index in src/background/idiom-index.js for related phrases discovery
-- [ ] T006 [P] Update Wiktionary REST normalizer in src/background/normalizers/wiktionary.js to parse Phrase, Idiom, Proverb, Verb, etymology/origin, and assign expression badges
-- [ ] T007 [P] Implement unit tests for Wiktionary idiom parsing, proverb extraction, and etymology formatting in tests/unit/wiktionary.test.js
-- [ ] T008 Update multi-provider coordinator in src/background/dictionary-service.js to dispatch phrase queries with candidate fallbacks and attach related idioms
-- [ ] T009 [P] Implement unit tests for multi-provider idiom lookup, candidate fallback routing, and error handling in tests/unit/dictionary-service.test.js
+- [x] T003 [P] Implement verb lemmatizer and pronoun normalizer in src/background/phrase-normalizer.js to generate candidate queries for inflected forms and pronouns
+- [x] T004 [P] Implement unit tests for verb lemmatization (past tense, participles, gerunds) and pronoun mapping in tests/unit/phrase-normalizer.test.js
+- [x] T005 [P] Implement high-frequency keyword-to-idiom reference index in src/background/idiom-index.js for related phrases discovery
+- [x] T006 [P] Update Wiktionary REST normalizer in src/background/normalizers/wiktionary.js to parse Phrase, Idiom, Proverb, Verb, etymology/origin, and assign expression badges
+- [x] T007 [P] Implement unit tests for Wiktionary idiom parsing, proverb extraction, and etymology formatting in tests/unit/wiktionary.test.js
+- [x] T008 Update multi-provider coordinator in src/background/dictionary-service.js to dispatch phrase queries with candidate fallbacks and attach related idioms
+- [x] T009 [P] Implement unit tests for multi-provider idiom lookup, candidate fallback routing, and error handling in tests/unit/dictionary-service.test.js
 
 **Checkpoint**: Foundation ready — all user story implementation phases can now proceed.
 
@@ -44,10 +44,10 @@
 
 **Independent Test**: Highlight "bite the bullet" or "break the ice" on any webpage; verify the popup displays an `[Idiom]` badge, figurative definition, and example sentence.
 
-- [ ] T010 [US1] Update src/content/popup-view.js to render expression badges ([Idiom], [Proverb]), figurative definitions, example sentences, and origin/etymology section
-- [ ] T011 [P] [US1] Add CSS styles for [Idiom] and [Proverb] badges, origin cards, and example blockquotes in src/content/popup.css and src/content/popup-styles.js
-- [ ] T012 [US1] Update multi-word selection listener in src/content/content.js to support 2 to 8 word phrases and anchor the floating icon or popup properly
-- [ ] T013 [P] [US1] Implement unit tests for 2 to 8 word phrase selection handling and floating icon trigger bounds in tests/unit/multi-word.test.js
+- [x] T010 [US1] Update src/content/popup-view.js to render expression badges ([Idiom], [Proverb]), figurative definitions, example sentences, and origin/etymology section
+- [x] T011 [P] [US1] Add CSS styles for [Idiom] and [Proverb] badges, origin cards, and example blockquotes in src/content/popup.css and src/content/popup-styles.js
+- [x] T012 [US1] Update multi-word selection listener in src/content/content.js to support 2 to 8 word phrases and anchor the floating icon or popup properly
+- [x] T013 [P] [US1] Implement unit tests for 2 to 8 word phrase selection handling and floating icon trigger bounds in tests/unit/multi-word.test.js
 
 **Checkpoint**: User Story 1 is fully functional and delivers the core MVP idiom lookup capability.
 
@@ -59,10 +59,10 @@
 
 **Independent Test**: Highlight "look forward to" or "give up"; verify the popup displays a `[Phrasal Verb]` badge with meaning, examples, and grammatical notes.
 
-- [ ] T014 [US2] Update Free Dictionary API normalizer and Wiktionary normalizer in src/background/dictionary-service.js to extract phrasal verb definitions and grammatical usage flags (transitivity, separability)
-- [ ] T015 [US2] Implement [Phrasal Verb] badge rendering and grammatical usage notes display in src/content/popup-view.js
-- [ ] T016 [P] [US2] Add CSS styles for [Phrasal Verb] badge and grammatical attribute tags in src/content/popup.css and src/content/popup-styles.js
-- [ ] T017 [P] [US2] Implement unit tests for phrasal verb detection and grammatical parsing in tests/unit/dictionary-service.test.js
+- [x] T014 [US2] Update Free Dictionary API normalizer and Wiktionary normalizer in src/background/dictionary-service.js to extract phrasal verb definitions and grammatical usage flags (transitivity, separability)
+- [x] T015 [US2] Implement [Phrasal Verb] badge rendering and grammatical usage notes display in src/content/popup-view.js
+- [x] T016 [P] [US2] Add CSS styles for [Phrasal Verb] badge and grammatical attribute tags in src/content/popup.css and src/content/popup-styles.js
+- [x] T017 [P] [US2] Implement unit tests for phrasal verb detection and grammatical parsing in tests/unit/dictionary-service.test.js
 
 **Checkpoint**: User Stories 1 and 2 are functional, providing comprehensive multi-word idiom and phrasal verb support.
 
@@ -74,9 +74,9 @@
 
 **Independent Test**: Highlight "bit the bullet" or "pulling his leg"; verify popup resolves to "bite the bullet" or "pull someone's leg" and presents full definitions.
 
-- [ ] T018 [US3] Integrate phrase-normalizer.js into handleMultiWordLookup in src/background/dictionary-service.js to iteratively evaluate candidate queries against Wiktionary and Free Dictionary
-- [ ] T019 [US3] Update popup header in src/content/popup-view.js to display the canonical headword alongside the matched surface expression
-- [ ] T020 [P] [US3] Implement unit and integration tests verifying end-to-end resolution of conjugated idioms and pronoun variants in tests/unit/dictionary-service.test.js
+- [x] T018 [US3] Integrate phrase-normalizer.js into handleMultiWordLookup in src/background/dictionary-service.js to iteratively evaluate candidate queries against Wiktionary and Free Dictionary
+- [x] T019 [US3] Update popup header in src/content/popup-view.js to display the canonical headword alongside the matched surface expression
+- [x] T020 [P] [US3] Implement unit and integration tests verifying end-to-end resolution of conjugated idioms and pronoun variants in tests/unit/dictionary-service.test.js
 
 **Checkpoint**: User Stories 1, 2, and 3 are functional, ensuring idioms in authentic prose match regardless of tense or pronoun.
 
@@ -88,11 +88,11 @@
 
 **Independent Test**: Double-click "weather"; verify "Related Idioms & Phrases" section displays "under the weather"; click the chip and verify the card transitions to "under the weather".
 
-- [ ] T021 [US4] Integrate idiom-index.js into single-word lookups in src/background/dictionary-service.js to attach matching relatedIdioms
-- [ ] T022 [US4] Implement collapsible Related Idioms & Phrases section with interactive chips and click handlers in src/content/popup-view.js
-- [ ] T023 [P] [US4] Add CSS styles for related idioms section, chips, and hover transitions in src/content/popup.css and src/content/popup-styles.js
-- [ ] T024 [US4] Wire related idiom click events in src/content/content.js to dispatch lookup for the clicked phrase without closing the popup
-- [ ] T025 [P] [US4] Implement unit tests for related idiom suggestions and chip click event propagation in tests/unit/dictionary-service.test.js
+- [x] T021 [US4] Integrate idiom-index.js into single-word lookups in src/background/dictionary-service.js to attach matching relatedIdioms
+- [x] T022 [US4] Implement collapsible Related Idioms & Phrases section with interactive chips and click handlers in src/content/popup-view.js
+- [x] T023 [P] [US4] Add CSS styles for related idioms section, chips, and hover transitions in src/content/popup.css and src/content/popup-styles.js
+- [x] T024 [US4] Wire related idiom click events in src/content/content.js to dispatch lookup for the clicked phrase without closing the popup
+- [x] T025 [P] [US4] Implement unit tests for related idiom suggestions and chip click event propagation in tests/unit/dictionary-service.test.js
 
 **Checkpoint**: Single-word lookups seamlessly connect to idiom discovery.
 
@@ -104,9 +104,9 @@
 
 **Independent Test**: Select "actions speak louder than words" in a webpage or PDF document, right-click, select "Look up in Simple English Dictionary", and confirm the popup card opens with the idiom definition.
 
-- [ ] T026 [US5] Update context menu listener and text truncation in src/background/background.js to support phrases up to 8 words
-- [ ] T027 [US5] Update TRIGGER_SELECTION_LOOKUP handler in src/content/content.js to process up to 8 words and invoke idiom lookup
-- [ ] T028 [P] [US5] Implement unit tests for context menu multi-word lookup trigger in tests/unit/context-menu.test.js
+- [x] T026 [US5] Update context menu listener and text truncation in src/background/background.js to support phrases up to 8 words
+- [x] T027 [US5] Update TRIGGER_SELECTION_LOOKUP handler in src/content/content.js to process up to 8 words and invoke idiom lookup
+- [x] T028 [P] [US5] Implement unit tests for context menu multi-word lookup trigger in tests/unit/context-menu.test.js
 
 **Checkpoint**: All user stories (US1-US5) are fully supported.
 
@@ -116,9 +116,9 @@
 
 **Purpose**: Edge cases, dual-meaning layout, not-found fallbacks, and complete test suite verification.
 
-- [ ] T029 Implement dual-meaning layout: emphasize figurative definition and render secondary literal definitions in src/content/popup-view.js
-- [ ] T030 Implement informative "Phrase not found" card with constituent word suggestions when no idiom matches in src/content/popup-view.js
-- [ ] T031 Run full regression test suite (npm test) and verify Chrome and Firefox builds (npm run build)
+- [x] T029 Implement dual-meaning layout: emphasize figurative definition and render secondary literal definitions in src/content/popup-view.js
+- [x] T030 Implement informative "Phrase not found" card with constituent word suggestions when no idiom matches in src/content/popup-view.js
+- [x] T031 Run full regression test suite (npm test) and verify Chrome and Firefox builds (npm run build)
 
 ---
 

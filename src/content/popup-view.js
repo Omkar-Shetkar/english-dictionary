@@ -207,6 +207,10 @@ export class PopupView {
     this.activeAudio = null;
     this.audioTimeoutId = null;
     this.cssText = '';
+    this.lastCoords = null;
+    this.lastAnchorRect = null;
+    this.onRelatedPhraseClick = null;
+    this.onSuggestWordClick = null;
 
     // Bound listeners for cleanup
     this._handleOutsideClick = this._handleOutsideClick.bind(this);
@@ -216,6 +220,14 @@ export class PopupView {
 
   setStyles(css) {
     this.cssText = css;
+  }
+
+  setOnRelatedPhraseClick(cb) {
+    this.onRelatedPhraseClick = cb;
+  }
+
+  setOnSuggestWordClick(cb) {
+    this.onSuggestWordClick = cb;
   }
 
   _ensureMounted() {
@@ -248,6 +260,7 @@ export class PopupView {
 
   _updatePosition(coords) {
     if (!this.host || !coords) return;
+    this.lastCoords = coords;
     this.host.style.top = `${coords.top}px`;
     this.host.style.left = `${coords.left}px`;
   }
@@ -272,6 +285,13 @@ export class PopupView {
       acronymBadge.className = 'dict-acronym-badge';
       acronymBadge.textContent = 'Acronym';
       titleRow.appendChild(acronymBadge);
+    } else if (extra && extra.expressionType && extra.expressionType !== 'general') {
+      const exprBadge = document.createElement('span');
+      const exprType = extra.expressionType;
+      const label = exprType === 'phrasal_verb' ? 'Phrasal Verb' : (exprType === 'proverb' ? 'Proverb' : 'Idiom');
+      exprBadge.className = `dict-domain-badge dict-domain-${exprType.replace(/[^a-z0-9]/g, '')}`;
+      exprBadge.textContent = label;
+      titleRow.appendChild(exprBadge);
     }
 
     if (phoneticText) {
@@ -288,6 +308,13 @@ export class PopupView {
       expansionEl.className = 'dict-acronym-expansion';
       expansionEl.textContent = extra.acronymExpansion;
       titleGroup.appendChild(expansionEl);
+    }
+
+    if (extra && extra.matchedSurfaceForm && extra.canonicalForm && extra.matchedSurfaceForm.toLowerCase() !== extra.canonicalForm.toLowerCase()) {
+      const matchedSubtitle = document.createElement('div');
+      matchedSubtitle.className = 'dict-matched-subtitle';
+      matchedSubtitle.textContent = `Matched from: "${extra.matchedSurfaceForm}"`;
+      titleGroup.appendChild(matchedSubtitle);
     }
 
     const actions = document.createElement('div');
@@ -362,14 +389,35 @@ export class PopupView {
       Boolean(entry.audioUrl || entry.word),
       {
         isAcronym: entry.isAcronym,
-        acronymExpansion: entry.acronymExpansion
+        acronymExpansion: entry.acronymExpansion,
+        expressionType: entry.expressionType,
+        matchedSurfaceForm: entry.matchedSurfaceForm,
+        canonicalForm: entry.canonicalForm
       }
     ));
 
     const body = document.createElement('div');
     body.className = 'dict-body';
 
-    // 1. Encyclopedic summary if present (Wikipedia lead)
+    // 1. Origin / Lore section for idioms and proverbs (if present)
+    if (entry.origin) {
+      const originBlock = document.createElement('div');
+      originBlock.className = 'dict-origin-block';
+
+      const originTitle = document.createElement('div');
+      originTitle.className = 'dict-origin-title';
+      originTitle.textContent = 'Origin & Background';
+      originBlock.appendChild(originTitle);
+
+      const originText = document.createElement('p');
+      originText.className = 'dict-origin-text';
+      originText.textContent = entry.origin;
+      originBlock.appendChild(originText);
+
+      body.appendChild(originBlock);
+    }
+
+    // 2. Encyclopedic summary if present (Wikipedia lead)
     if (entry.encyclopedicSummary) {
       const encycloBlock = document.createElement('div');
       encycloBlock.className = 'dict-encyclopedic-block';
@@ -429,6 +477,28 @@ export class PopupView {
 
         const defText = document.createElement('div');
         defText.textContent = d.definition;
+
+        // Grammatical usage notes (e.g. [transitive], [inseparable])
+        if (d.grammarNotes && typeof d.grammarNotes === 'object') {
+          const notesSpan = document.createElement('span');
+          notesSpan.className = 'dict-grammar-notes';
+          if (d.grammarNotes.transitivity) {
+            const tTag = document.createElement('span');
+            tTag.className = 'dict-grammar-tag';
+            tTag.textContent = d.grammarNotes.transitivity;
+            notesSpan.appendChild(tTag);
+          }
+          if (d.grammarNotes.separability) {
+            const sTag = document.createElement('span');
+            sTag.className = 'dict-grammar-tag';
+            sTag.textContent = d.grammarNotes.separability;
+            notesSpan.appendChild(sTag);
+          }
+          if (notesSpan.childNodes.length > 0) {
+            defText.appendChild(notesSpan);
+          }
+        }
+
         item.appendChild(defText);
 
         if (d.example) {
@@ -455,9 +525,34 @@ export class PopupView {
       return groupEl;
     };
 
-    // Primary / domain meanings
+    // Primary / domain / idiom meanings
     if (entry.meanings && entry.meanings.length > 0) {
       for (const group of entry.meanings) {
+        body.appendChild(renderMeaningGroup(group));
+      }
+    }
+
+    // Literal meanings section if available
+    if (entry.literalMeanings && entry.literalMeanings.length > 0) {
+      const divider = document.createElement('div');
+      divider.className = 'dict-stacked-divider';
+
+      const line1 = document.createElement('span');
+      line1.className = 'dict-divider-line';
+      divider.appendChild(line1);
+
+      const label = document.createElement('span');
+      label.className = 'dict-divider-label';
+      label.textContent = 'Literal Meaning';
+      divider.appendChild(label);
+
+      const line2 = document.createElement('span');
+      line2.className = 'dict-divider-line';
+      divider.appendChild(line2);
+
+      body.appendChild(divider);
+
+      for (const group of entry.literalMeanings) {
         body.appendChild(renderMeaningGroup(group));
       }
     }
@@ -485,6 +580,53 @@ export class PopupView {
       for (const group of entry.generalMeanings) {
         body.appendChild(renderMeaningGroup(group));
       }
+    }
+
+    // Related Idioms & Phrases Section (FR-009, SC-004)
+    if (entry.relatedIdioms && Array.isArray(entry.relatedIdioms) && entry.relatedIdioms.length > 0) {
+      const relatedSection = document.createElement('div');
+      relatedSection.className = 'dict-related-section';
+
+      const relatedHeader = document.createElement('div');
+      relatedHeader.className = 'dict-related-header';
+      relatedHeader.textContent = 'Related Idioms & Phrases';
+      relatedSection.appendChild(relatedHeader);
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'dict-related-chips';
+
+      for (const item of entry.relatedIdioms) {
+        const chip = document.createElement('button');
+        chip.className = 'dict-related-chip';
+        chip.type = 'button';
+        chip.title = item.summary || item.phrase;
+
+        const chipText = document.createElement('span');
+        chipText.className = 'dict-chip-text';
+        chipText.textContent = item.phrase;
+        chip.appendChild(chipText);
+
+        if (item.badge) {
+          const chipBadge = document.createElement('span');
+          const badgeClass = item.badge.toLowerCase().replace(/[^a-z0-9]/g, '');
+          chipBadge.className = `dict-chip-badge dict-badge-${badgeClass}`;
+          chipBadge.textContent = item.badge;
+          chip.appendChild(chipBadge);
+        }
+
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          if (typeof this.onRelatedPhraseClick === 'function') {
+            this.onRelatedPhraseClick(item.phrase);
+          }
+        });
+
+        chipsContainer.appendChild(chip);
+      }
+
+      relatedSection.appendChild(chipsContainer);
+      body.appendChild(relatedSection);
     }
 
     card.appendChild(body);
@@ -518,6 +660,35 @@ export class PopupView {
     desc.className = 'dict-error-desc';
     desc.textContent = message || 'Unable to retrieve definition.';
     errorView.appendChild(desc);
+
+    // If a multi-word phrase was not found, suggest looking up constituent words (FR-013)
+    const tokens = (word || '').trim().split(/\s+/).filter(Boolean);
+    if (!isNetwork && tokens.length > 1) {
+      const suggestContainer = document.createElement('div');
+      suggestContainer.className = 'dict-suggest-words';
+
+      for (const token of tokens) {
+        const clean = token.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+        if (clean.length > 2) {
+          const btn = document.createElement('button');
+          btn.className = 'dict-suggest-btn';
+          btn.type = 'button';
+          btn.textContent = `Look up "${clean}"`;
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (typeof this.onSuggestWordClick === 'function') {
+              this.onSuggestWordClick(clean);
+            }
+          });
+          suggestContainer.appendChild(btn);
+        }
+      }
+
+      if (suggestContainer.childNodes.length > 0) {
+        errorView.appendChild(suggestContainer);
+      }
+    }
 
     card.appendChild(errorView);
     this._renderCard(card);
