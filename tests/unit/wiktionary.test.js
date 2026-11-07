@@ -134,5 +134,76 @@ describe('wiktionary normalizer', () => {
       expect(normalizeWiktionaryPayload({}, 'test')).toBeNull();
       expect(normalizeWiktionaryPayload({ en: [] }, 'test')).toBeNull();
     });
+
+    it('normalizes multi-word idiom entries (e.g., bite the bullet)', () => {
+      const mockPayload = {
+        en: [
+          {
+            partOfSpeech: 'Phrase',
+            etymology: 'From the historical practice of having soldiers bite on a lead bullet during surgery.',
+            definitions: [
+              {
+                definition: '<p>(idiomatic) To accept or endure a grim or dire situation with fortitude.</p>',
+                examples: ["We'll just have to bite the bullet and pay the fee."]
+              }
+            ]
+          }
+        ]
+      };
+
+      const result = normalizeWiktionaryPayload(mockPayload, 'bite the bullet');
+      expect(result).not.toBeNull();
+      expect(result.word).toBe('bite the bullet');
+      expect(result.expressionType).toBe('idiom');
+      expect(result.origin).toContain('lead bullet during surgery');
+      expect(result.meanings[0].domain).toBe('Idiom');
+      expect(result.meanings[0].definitions[0].definition).toContain('accept or endure a grim or dire situation');
+      expect(result.meanings[0].definitions[0].example).toBe("We'll just have to bite the bullet and pay the fee.");
+    });
+
+    it('normalizes proverb entries (e.g., actions speak louder than words)', () => {
+      const mockPayload = {
+        en: [
+          {
+            partOfSpeech: 'Proverb',
+            definitions: [
+              {
+                definition: '<p>What one does is more significant than what one says.</p>',
+                examples: ['He promised to fix it, but actions speak louder than words.']
+              }
+            ]
+          }
+        ]
+      };
+
+      const result = normalizeWiktionaryPayload(mockPayload, 'actions speak louder than words');
+      expect(result).not.toBeNull();
+      expect(result.expressionType).toBe('proverb');
+      expect(result.meanings[0].domain).toBe('Proverb');
+      expect(result.meanings[0].definitions[0].definition).toContain('more significant than what one says');
+    });
+
+    it('normalizes phrasal verbs with transitivity/separability (e.g., look forward to)', () => {
+      const mockPayload = {
+        en: [
+          {
+            partOfSpeech: 'Verb',
+            definitions: [
+              {
+                definition: '<p>(idiomatic, transitive, inseparable) To anticipate with pleasure or eager expectation.</p>',
+                examples: ['I look forward to hearing from you.']
+              }
+            ]
+          }
+        ]
+      };
+
+      const result = normalizeWiktionaryPayload(mockPayload, 'look forward to');
+      expect(result).not.toBeNull();
+      expect(result.expressionType).toBe('phrasal_verb');
+      expect(result.meanings[0].domain).toBe('Phrasal Verb');
+      expect(result.meanings[0].definitions[0].grammarNotes.transitivity).toBe('transitive');
+      expect(result.meanings[0].definitions[0].grammarNotes.separability).toBe('inseparable');
+    });
   });
 });

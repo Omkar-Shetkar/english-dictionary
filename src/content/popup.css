@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Simple English Dictionary Firefox Addon - Shadow DOM Popup Styles
+   Simple English Dictionary Extension - Shadow DOM Popup Styles
    Glassmorphic, Modern, Responsive & Dynamic Card
    ========================================================================== */
 
@@ -653,4 +653,205 @@
     transform: scale(1);
   }
 }
+
+/* ==========================================================================
+   Idioms, Proverbs, and Phrasal Verbs Styles
+   ========================================================================== */
+
+/* Expression Badges */
+.dict-domain-badge.dict-domain-idiom {
+  background: rgba(147, 51, 234, 0.12);
+  color: #9333ea;
+  border-color: rgba(147, 51, 234, 0.25);
+}
+
+.dict-domain-badge.dict-domain-proverb {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
+.dict-domain-badge.dict-domain-phrasalverb {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d9488;
+  border-color: rgba(13, 148, 136, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dict-domain-badge.dict-domain-idiom {
+    background: rgba(168, 85, 247, 0.22);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.35);
+  }
+  .dict-domain-badge.dict-domain-proverb {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+  .dict-domain-badge.dict-domain-phrasalverb {
+    background: rgba(45, 212, 191, 0.22);
+    color: #5eead4;
+    border-color: rgba(45, 212, 191, 0.35);
+  }
+}
+
+.dict-card.theme-dark .dict-domain-badge.dict-domain-idiom {
+  background: rgba(168, 85, 247, 0.22);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-proverb {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.dict-card.theme-dark .dict-domain-badge.dict-domain-phrasalverb {
+  background: rgba(45, 212, 191, 0.22);
+  color: #5eead4;
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+/* Surface Match Subtitle */
+.dict-matched-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 1px;
+}
+
+/* Grammatical notes for phrasal verbs */
+.dict-grammar-notes {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.dict-grammar-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--text-secondary);
+}
+
+/* Origin & Lore Block */
+.dict-origin-block {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  border-left: 3px solid #9333ea;
+}
+
+.dict-origin-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9333ea;
+  margin-bottom: 4px;
+}
+
+.dict-origin-text {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Related Idioms & Phrases Section */
+.dict-related-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.dict-related-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.dict-related-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dict-related-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.dict-related-chip:hover {
+  background: var(--accent-light);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+
+.dict-related-chip:active {
+  transform: translateY(0);
+}
+
+.dict-chip-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: rgba(147, 51, 234, 0.12);
+  color: #9333ea;
+}
+
+.dict-chip-badge.dict-badge-phrasalverb {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d9488;
+}
+
+.dict-chip-badge.dict-badge-proverb {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
+/* Not Found Word Suggestion Chips */
+.dict-suggest-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.dict-suggest-btn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--accent-color);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dict-suggest-btn:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-color);
+}
+
 

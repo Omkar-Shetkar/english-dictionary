@@ -58,7 +58,7 @@ async function sendBackgroundMessage(payload) {
       const res = await browser.runtime.sendMessage(payload);
       if (res !== undefined) return res;
     } catch (err) {
-      console.warn('[Dictionary Addon] browser.runtime.sendMessage error:', err);
+      console.warn('[Simple English Dictionary] browser.runtime.sendMessage error:', err);
     }
   }
 
@@ -74,7 +74,7 @@ async function sendBackgroundMessage(payload) {
         });
       });
     } catch (err) {
-      console.warn('[Dictionary Addon] chrome.runtime.sendMessage error:', err);
+      console.warn('[Simple English Dictionary] chrome.runtime.sendMessage error:', err);
     }
   }
 
@@ -235,7 +235,22 @@ async function initializeOptions() {
   try {
     activeConfig = await getSettings();
   } catch (err) {
-    console.warn('[Dictionary Addon] Failed to load settings:', err);
+    console.warn('[Simple English Dictionary] Failed to load settings:', err);
+  }
+
+  // Populate dynamic footer information
+  const footerEl = document.getElementById('footerExtensionInfo');
+  if (footerEl) {
+    try {
+      const manifest = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest)
+        ? chrome.runtime.getManifest()
+        : (typeof browser !== 'undefined' && browser.runtime?.getManifest ? browser.runtime.getManifest() : null);
+      if (manifest?.version) {
+        footerEl.textContent = `Simple English Dictionary Extension v${manifest.version}`;
+      }
+    } catch {
+      // Fallback to static text
+    }
   }
 
   // Populate controls

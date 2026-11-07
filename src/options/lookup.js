@@ -242,6 +242,13 @@ function renderResult(entry) {
     badge.className = 'dict-acronym-badge';
     badge.textContent = 'Acronym';
     titleRow.appendChild(badge);
+  } else if (entry.expressionType && entry.expressionType !== 'general') {
+    const exprBadge = document.createElement('span');
+    const exprType = entry.expressionType;
+    const label = exprType === 'phrasal_verb' ? 'Phrasal Verb' : (exprType === 'proverb' ? 'Proverb' : 'Idiom');
+    exprBadge.className = `dict-domain-badge dict-domain-${exprType.replace(/[^a-z0-9]/g, '')}`;
+    exprBadge.textContent = label;
+    titleRow.appendChild(exprBadge);
   }
 
   titleGroup.appendChild(titleRow);
@@ -251,6 +258,17 @@ function renderResult(entry) {
     expansionEl.className = 'dict-acronym-expansion';
     expansionEl.textContent = entry.acronymExpansion;
     titleGroup.appendChild(expansionEl);
+  }
+
+  if (entry.matchedSurfaceForm && entry.canonicalForm && entry.matchedSurfaceForm.toLowerCase() !== entry.canonicalForm.toLowerCase()) {
+    const sub = document.createElement('div');
+    sub.className = 'dict-matched-subtitle';
+    sub.style.fontSize = '11px';
+    sub.style.color = 'var(--text-muted, #64748b)';
+    sub.style.fontStyle = 'italic';
+    sub.style.marginTop = '2px';
+    sub.textContent = `Matched from: "${entry.matchedSurfaceForm}"`;
+    titleGroup.appendChild(sub);
   }
 
   header.appendChild(titleGroup);
@@ -267,7 +285,36 @@ function renderResult(entry) {
 
   container.appendChild(header);
 
-  // 2. Encyclopedic Summary if present
+  // 2. Origin & Lore if present
+  if (entry.origin) {
+    const originBlock = document.createElement('div');
+    originBlock.className = 'dict-origin-block';
+    originBlock.style.margin = '10px 0';
+    originBlock.style.padding = '8px 12px';
+    originBlock.style.background = 'var(--bg-surface, #f8fafc)';
+    originBlock.style.borderRadius = '8px';
+    originBlock.style.borderLeft = '3px solid #9333ea';
+
+    const originTitle = document.createElement('div');
+    originTitle.style.fontSize = '10.5px';
+    originTitle.style.fontWeight = '700';
+    originTitle.style.textTransform = 'uppercase';
+    originTitle.style.color = '#9333ea';
+    originTitle.style.marginBottom = '4px';
+    originTitle.textContent = 'Origin & Background';
+    originBlock.appendChild(originTitle);
+
+    const originText = document.createElement('p');
+    originText.style.fontSize = '12.5px';
+    originText.style.margin = '0';
+    originText.style.lineHeight = '1.4';
+    originText.textContent = entry.origin;
+    originBlock.appendChild(originText);
+
+    container.appendChild(originBlock);
+  }
+
+  // 3. Encyclopedic Summary if present
   if (entry.encyclopedicSummary) {
     const block = document.createElement('div');
     block.className = 'dict-encyclopedic-block';
@@ -363,6 +410,55 @@ function renderResult(entry) {
       container.appendChild(renderGroup(group));
     }
   }
+
+  // Related Idioms & Phrases section
+  if (entry.relatedIdioms && Array.isArray(entry.relatedIdioms) && entry.relatedIdioms.length > 0) {
+    const relatedSection = document.createElement('div');
+    relatedSection.className = 'dict-related-section';
+    relatedSection.style.marginTop = '14px';
+    relatedSection.style.paddingTop = '10px';
+    relatedSection.style.borderTop = '1px dashed var(--border-color, #e2e8f0)';
+
+    const relatedHeader = document.createElement('div');
+    relatedHeader.style.fontSize = '11px';
+    relatedHeader.style.fontWeight = '700';
+    relatedHeader.style.textTransform = 'uppercase';
+    relatedHeader.style.color = 'var(--text-muted, #64748b)';
+    relatedHeader.style.marginBottom = '8px';
+    relatedHeader.textContent = 'Related Idioms & Phrases';
+    relatedSection.appendChild(relatedHeader);
+
+    const chipsContainer = document.createElement('div');
+    chipsContainer.style.display = 'flex';
+    chipsContainer.style.flexWrap = 'wrap';
+    chipsContainer.style.gap = '6px';
+
+    for (const item of entry.relatedIdioms) {
+      const chip = document.createElement('button');
+      chip.className = 'dict-related-chip';
+      chip.type = 'button';
+      chip.title = item.summary || item.phrase;
+      chip.style.display = 'inline-flex';
+      chip.style.alignItems = 'center';
+      chip.style.gap = '4px';
+      chip.style.padding = '3px 8px';
+      chip.style.borderRadius = '12px';
+      chip.style.border = '1px solid var(--border-color, #cbd5e1)';
+      chip.style.background = 'var(--bg-surface, #f8fafc)';
+      chip.style.fontSize = '12px';
+      chip.style.cursor = 'pointer';
+      chip.textContent = item.phrase;
+
+      chip.addEventListener('click', () => {
+        const input = document.getElementById('lookupInput');
+        if (input) input.value = item.phrase;
+        executeLookup(item.phrase);
+      });
+      chipsContainer.appendChild(chip);
+    }
+    relatedSection.appendChild(chipsContainer);
+    container.appendChild(relatedSection);
+  }
 }
 
 async function executeLookup(rawQuery) {
@@ -405,7 +501,7 @@ async function executeLookup(rawQuery) {
       return;
     }
   } catch (err) {
-    console.warn('[Dictionary Addon] Direct lookup error:', err);
+    console.warn('[Simple English Dictionary] Direct lookup error:', err);
   }
 
   renderError(term, bgRes?.errorMessage || 'No definitions found for this term.');

@@ -109,7 +109,7 @@ describe('sanitizeDomainTerm utility', () => {
     expect(pe.wordCount).toBe(2);
   });
 
-  it('supports 2 to 4 word compound phrases', () => {
+  it('supports 2 to 8 word compound phrases and idioms', () => {
     const twoWords = sanitizeDomainTerm('machine learning');
     expect(twoWords.isValid).toBe(true);
     expect(twoWords.term).toBe('machine learning');
@@ -120,12 +120,21 @@ describe('sanitizeDomainTerm utility', () => {
     expect(fourWords.isValid).toBe(true);
     expect(fourWords.wordCount).toBe(4);
     expect(fourWords.isMultiWord).toBe(true);
+
+    const fiveWords = sanitizeDomainTerm('actions speak louder than words');
+    expect(fiveWords.isValid).toBe(true);
+    expect(fiveWords.wordCount).toBe(5);
+    expect(fiveWords.term).toBe('actions speak louder than words');
+
+    const eightWords = sanitizeDomainTerm("don't put all your eggs in one basket");
+    expect(eightWords.isValid).toBe(true);
+    expect(eightWords.wordCount).toBe(8);
   });
 
-  it('rejects selections with more than 4 words', () => {
-    const fiveWords = sanitizeDomainTerm('this is five words long');
-    expect(fiveWords.isValid).toBe(false);
-    expect(fiveWords.wordCount).toBe(5);
+  it('rejects selections with more than 8 words', () => {
+    const nineWords = sanitizeDomainTerm('this is a test with more than eight words');
+    expect(nineWords.isValid).toBe(false);
+    expect(nineWords.wordCount).toBe(9);
   });
 
   it('rejects pure symbols or numeric selections', () => {

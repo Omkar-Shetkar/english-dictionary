@@ -86,7 +86,7 @@ export async function getSettings() {
     const stored = result && result[STORAGE_KEY] ? result[STORAGE_KEY] : {};
     return validateConfig(stored);
   } catch (err) {
-    console.warn('[Dictionary Addon] Failed to load settings from storage:', err);
+    console.warn('[Simple English Dictionary] Failed to load settings from storage:', err);
     return { ...DEFAULT_CONFIG };
   }
 }
@@ -105,7 +105,7 @@ export async function saveSettings(partialConfig) {
     try {
       await storage.set({ [STORAGE_KEY]: updated });
     } catch (err) {
-      console.error('[Dictionary Addon] Failed to save settings to storage:', err);
+      console.error('[Simple English Dictionary] Failed to save settings to storage:', err);
     }
   }
 

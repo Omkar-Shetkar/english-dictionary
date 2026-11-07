@@ -18,8 +18,8 @@ const TRAILING_BOUNDARY_REGEX = /[\s"'”’)\]}>».,:;!?-]+$/u;
 const HAS_LETTER_REGEX = /\p{L}/u;
 
 export const MAX_WORD_LENGTH = 45;
-export const MAX_PHRASE_WORDS = 4;
-export const MAX_PHRASE_LENGTH = 120;
+export const MAX_PHRASE_WORDS = 8;
+export const MAX_PHRASE_LENGTH = 180;
 
 /**
  * Pre-cleans PDF-specific typography artifacts:
